@@ -1,0 +1,8 @@
+# fly.toml file generated for discord-kasoke-bot on 2023-01-07T16:30:59-03:00
+
+app = "discord-kasoke-bot"
+kill_signal = "SIGINT"
+kill_timeout = 5
+processes = []
+
+[env]
