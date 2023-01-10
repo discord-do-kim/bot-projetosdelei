@@ -1,4 +1,4 @@
-name: Discord Kasoke Bot
+name: Discord Kim Bot
 on: 
   push:
    branches:

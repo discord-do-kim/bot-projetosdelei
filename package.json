@@ -1,5 +1,5 @@
 {
-  "name": "kasoke-bot",
+  "name": "discord-kim-bot",
   "version": "1.0.0",
   "description": "",
   "main": "src/index.ts",
@@ -9,8 +9,7 @@
     "start": "cross-env NODE_ENV=production node build/index.js",
     "build": "rm -rf ./build && tsc",
     "lint": "eslint src/**/*.ts",
-    "commands": "ts-node ./src/deploy-commands.ts",
-    "commands:dev": "cross-env NODE_ENV=development ts-node ./src/deploy-commands.ts"
+    "commands": "ts-node ./src/deploy-commands.ts"
   },
   "author": "",
   "license": "ISC",
@@ -34,9 +33,6 @@
     "typescript": "^4.8.3"
   },
   "dependencies": {
-    "axios": "^1.2.2",
-    "cron": "^2.1.0",
-    "dayjs": "^1.11.7",
     "discord.js": "^14.7.1"
   },
   "engines": {

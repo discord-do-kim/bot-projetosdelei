@@ -1,6 +1,5 @@
-import { Client as ApiClient, Collection } from "discord.js";
-import { CommandHandler } from "./commands/CommandHandler";
+import { Client, GatewayIntentBits } from "discord.js";
 
-export class Client extends ApiClient {
-  public commands: Collection<string, CommandHandler>;
-}
+export const client = new Client({
+  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages],
+});

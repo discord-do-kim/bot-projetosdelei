@@ -1,9 +1,6 @@
 import { config } from "dotenv";
-import path from "path";
 
-config({
-  path: path.join(__dirname, `../.env.${process.env.NODE_ENV}`),
-});
+config();
 
 export const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
 export const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID;
