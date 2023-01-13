@@ -4,20 +4,28 @@ import {
   ButtonBuilder,
   ButtonInteraction,
   ButtonStyle,
+  ChannelType,
   Colors,
   EmbedBuilder,
   Events,
+  Interaction,
   ModalBuilder,
   TextInputBuilder,
   TextInputStyle,
-  time,
+  ThreadAutoArchiveDuration,
 } from "discord.js";
 import { projetosData } from "../db/projetosData";
 import { ScriptHandler } from "./ScriptHandler";
 
 export class ProjetosDeLei extends ScriptHandler {
+  private projectRejectData = {
+    rejectModalId: randomUUID(),
+    rejectReasonField: randomUUID(),
+  };
+
   private projectCreateData = {
     buttonId: randomUUID(),
+    userId: "",
   };
 
   private sugestionModalData = {
@@ -31,11 +39,19 @@ export class ProjetosDeLei extends ScriptHandler {
     rejectButtonId: randomUUID(),
   };
 
-  constructor(
-    private channelToVerifyId: string,
-    private channelToSendId: string
-  ) {
+  private channelToVerifyId: string;
+  private channelToSendId: string;
+  private lfpanelli: string;
+
+  constructor(options: {
+    channelToVerifyId: string;
+    channelToSendId: string;
+    lfpanelli: string;
+  }) {
     super();
+    this.channelToSendId = options.channelToSendId;
+    this.channelToVerifyId = options.channelToVerifyId;
+    this.lfpanelli = options.lfpanelli;
   }
 
   async run() {
@@ -43,6 +59,7 @@ export class ProjetosDeLei extends ScriptHandler {
     await this.handleOpenSugestionModal();
     await this.handleSugestionSend();
     await this.handleButtonInspecion();
+    await this.handleModalReject();
   }
 
   get channelToSend() {
@@ -146,8 +163,9 @@ export class ProjetosDeLei extends ScriptHandler {
           iconURL: user.avatarURL(),
         })
         .setTitle(title)
+        .setColor(Colors.Blue)
         .setDescription(content)
-        .setFields({ name: "Sugerido em:", value: time() })
+        .setFooter({ text: interaction.user.id })
         .setTimestamp(new Date());
 
       const aproved = new ButtonBuilder()
@@ -165,7 +183,12 @@ export class ProjetosDeLei extends ScriptHandler {
         reject
       );
 
-      this.channelToVerify.send({ embeds: [embed], components: [button] });
+      await this.channelToVerify.send({
+        embeds: [embed],
+        components: [button],
+      });
+
+      this.projectCreateData.userId = interaction.user.id;
     });
   }
 
@@ -178,29 +201,89 @@ export class ProjetosDeLei extends ScriptHandler {
       const aprovedId = this.inspecionData.aprovedButtonId;
       const rejectId = this.inspecionData.rejectButtonId;
 
-      if (interactionId === aprovedId)
-        return this.handleButtonAproved(interaction);
-      if (interactionId === rejectId)
-        return this.handleButtonReject(interaction); //
+      if (interactionId === aprovedId) {
+        this.handleButtonAproved(interaction);
+        return;
+      }
+      if (interactionId === rejectId) {
+        this.handleButtonReject(interaction);
+        return;
+      }
     });
   }
 
   private async handleButtonAproved(interaction: ButtonInteraction) {
     interaction.deferReply({ ephemeral: true });
     const message = await interaction.message.fetch();
-    const embed = message.embeds[0];
+    const oldEmbed = message.embeds[0];
 
-    const newEmbed = new EmbedBuilder(embed)
+    const embed = new EmbedBuilder()
+      .setColor(Colors.Green)
+      .setTitle(oldEmbed.title)
+      .setDescription(oldEmbed.description)
+      .setFooter({
+        text: "Projeto de lei sugerido por @" + oldEmbed.author.name,
+      })
+      .setTimestamp(new Date(oldEmbed.timestamp));
+
+    if (
+      !this.channelToSend.isTextBased() ||
+      this.channelToSend.isThread() ||
+      this.channelToSend.isDMBased() ||
+      this.channelToSend.isVoiceBased()
+    )
+      return interaction.followUp({
+        content: "Não foi possível aceitar essa sugestão",
+        ephemeral: true,
+      });
+
+    try {
+      const thread = await this.channelToSend.threads.create({
+        name: embed.toJSON().title,
+        reason: "Novo projeto de lei",
+        autoArchiveDuration: ThreadAutoArchiveDuration.OneWeek,
+        invitable: false as never,
+        type: ChannelType.PrivateThread as never,
+      });
+
+      const projectMessage = await thread.send({
+        content: `Projeto de lei sugerido por: <@${this.projectCreateData.userId}>.`,
+        embeds: [embed],
+      });
+
+      thread.members.add(interaction.user);
+
+      await projectMessage
+        .reply({
+          content: `Responsável pela fiscalização do canal: ${interaction.user}`,
+        })
+        .then((e) => e.delete());
+
+      projectMessage.reply({
+        content: `Projeto de lei sugerido para você, <@${this.lfpanelli}>!`,
+      });
+
+      const author = this.client.users.cache.get(this.projectCreateData.userId);
+
+      await author.send({
+        content: "Seu projeto de lei foi aceito.",
+        embeds: [embed],
+      });
+    } catch (e) {
+      console.log(e);
+      return;
+    }
+
+    const acceptEmbed = new EmbedBuilder()
       .setColor("Green")
       .setFooter({
         iconURL: interaction.user.avatarURL({ size: 32 }),
         text: `Aprovado por @${interaction.user.username}`,
       })
-      .addFields([{ name: "Aceito em: ", value: time() }])
       .setTimestamp(new Date());
 
     try {
-      await message.edit({ embeds: [newEmbed], components: [] });
+      await message.edit({ embeds: [embed, acceptEmbed], components: [] });
     } catch (e) {
       console.log(e);
     }
@@ -211,28 +294,81 @@ export class ProjetosDeLei extends ScriptHandler {
   }
 
   private async handleButtonReject(interaction: ButtonInteraction) {
-    interaction.deferReply({ ephemeral: true });
-    const message = await interaction.message.fetch();
-    const embed = message.embeds[0];
+    const field = new ActionRowBuilder<TextInputBuilder>().addComponents(
+      new TextInputBuilder()
+        .setCustomId(this.projectRejectData.rejectReasonField)
+        .setRequired(true)
+        .setStyle(TextInputStyle.Paragraph)
+        .setLabel("Descreva aqui o por quê.")
+    );
 
-    const newEmbed = new EmbedBuilder(embed)
-      .setColor("Red")
-      .setFooter({
-        iconURL: interaction.user.avatarURL({ size: 32 }),
-        text: `Rejeitado por @${interaction.user.username}`,
-      })
-      .addFields([{ name: "Rejeitado em: ", value: time() }])
-      .setTimestamp(new Date());
+    const modal = new ModalBuilder()
+      .setCustomId(this.projectRejectData.rejectModalId)
+      .setTitle("Por que você rejeitou?")
+      .addComponents(field);
 
-    try {
-      await message.edit({ embeds: [newEmbed], components: [] });
-    } catch (e) {
-      console.log(e);
-    }
+    await interaction.showModal(modal);
+  }
 
-    await interaction.editReply({
-      content: "Projeto rejeitado.",
-    });
+  private async handleModalReject() {
+    this.client.on(
+      Events.InteractionCreate,
+      async (interaction: Interaction) => {
+        if (!interaction.isModalSubmit()) return;
+
+        if (interaction.customId !== this.projectRejectData.rejectModalId)
+          return;
+
+        interaction.deferReply();
+        const reason = interaction.fields.getTextInputValue(
+          this.projectRejectData.rejectReasonField
+        );
+
+        const message = await interaction.message.fetch();
+        const embed = message.embeds[0];
+
+        const reasonEmbed = new EmbedBuilder()
+          .setTitle("Motivo da Rejeição:")
+          .setDescription(reason)
+          .setColor(Colors.Red)
+          .setFooter({
+            iconURL: interaction.user.avatarURL(),
+            text: `Rejeitado por @${interaction.user.username}`,
+          });
+
+        try {
+          await message.edit({
+            embeds: [embed, reasonEmbed],
+            components: [],
+          });
+        } catch (e) {
+          await interaction.followUp({
+            ephemeral: true,
+            content: `Alguma coisa deu errado. ${e}`,
+          });
+
+          return;
+        }
+
+        try {
+          await this.client.users.send(this.projectCreateData.userId, {
+            content: "Seu projeto de lei no Discord Do Kim foi rejeitado.",
+            embeds: [embed, reasonEmbed],
+          });
+        } catch (e) {
+          await interaction.followUp({
+            content: `Não foi possível enviar o motivo da rejeição para o usuário <@${this.projectCreateData.userId}>. Talvez ele pergunte o por quê.`,
+          });
+
+          return;
+        }
+
+        await interaction.followUp({
+          ephemeral: true,
+          content: "Motivo da rejeição enviado com sucesso!",
+        });
+      }
+    );
   }
 
   get rejeitadasEmbed() {

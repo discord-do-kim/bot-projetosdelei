@@ -90,4 +90,5 @@ Se as privatizações estão paradas, certamente não é culpa do Congresso.
 **4. Eu (Luiz Felipe Panelli, assessor do Kim) tentarei entrar no Discord diariamente**`,
   avatarPanelli:
     "https://cdn.discordapp.com/avatars/740977650423824554/a0efafbb5e4d1b85db5415a481e535f8.webp?size=2048",
+  customResponses: [],
 };
