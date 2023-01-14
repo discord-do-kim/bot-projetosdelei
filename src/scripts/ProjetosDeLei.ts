@@ -141,7 +141,7 @@ export class ProjetosDeLei extends ScriptHandler {
 
       await interaction.reply({
         content:
-          "Sua sugestão será analisada pelos moderadores. Você será notificado no privado se a sua sugestão for aceita/rejeitada e o motivo!",
+          "A qualidade da sua sugestão será analisada pelos moderadores. Você será notificado no privado se a sua sugestão for aceita/rejeitada e o motivo!",
         ephemeral: true,
       });
 
@@ -233,7 +233,7 @@ export class ProjetosDeLei extends ScriptHandler {
       this.channelToSend.isVoiceBased()
     )
       return interaction.followUp({
-        content: "Não foi possível aceitar essa sugestão",
+        content: `Não foi possível aceitar essa sugestão. Não tenho permissão de abrir thread no ${this.channelToSend.url}. `,
         ephemeral: true,
       });
 
@@ -266,7 +266,8 @@ export class ProjetosDeLei extends ScriptHandler {
       const author = this.client.users.cache.get(this.projectCreateData.userId);
 
       await author.send({
-        content: "Seu projeto de lei foi aceito.",
+        content:
+          "Seu projeto de lei foi aceito pela fiscalização de qualidade.",
         embeds: [embed],
       });
     } catch (e) {
@@ -289,7 +290,7 @@ export class ProjetosDeLei extends ScriptHandler {
     }
 
     await interaction.editReply({
-      content: "Projeto aceito.",
+      content: "Projeto aceito pela fiscalização de qualidade.",
     });
   }
 
@@ -352,7 +353,8 @@ export class ProjetosDeLei extends ScriptHandler {
 
         try {
           await this.client.users.send(this.projectCreateData.userId, {
-            content: "Seu projeto de lei no Discord Do Kim foi rejeitado.",
+            content:
+              "Seu projeto de lei no Discord Do Kim foi rejeitado pela fiscalização de qualidade.",
             embeds: [embed, reasonEmbed],
           });
         } catch (e) {
@@ -408,13 +410,24 @@ export class ProjetosDeLei extends ScriptHandler {
       )
       .setFields([
         {
-          name: "Como mandar a sugestão de um projeto de lei?",
-          value: `
-1 - Primeiro precisamos que o seu PL esteja de acordo com o FAQ acima.,
-2 - Pressione o botão abaixo e então preencha o título e a descrição do seu projeto de lei.",
-3 - É importante estar com a DM liberada para esse servidor, pois assim você recebe um feedback se o seu projeto foi aceito ou rejeitado pela fiscalização de qualidade."
-4 - Se estiver tudo de acordo, você será notificado aqui mesmo, em uma thread.
-5 - Se um moderador rejeitar, você receberá o motivo na DM, junto com uma cópia do seu projeto de lei.`,
+          name: "1 - Primeiro precisamos que o seu PL esteja de acordo com o tutorial e avisos acima.",
+          value:
+            "Seu projeto será rejeitado se ele bater em alguns dos pontos citados acima.",
+        },
+        {
+          name: "2 - O botão abaixo abrirá uma caixa de formulário que enviará o seu PL para moderação do servidor.",
+          value:
+            "Essa fiscalização é apenas para filtrar **FLOOD**, **SPAM**, **PROJETOS REPETIDOS**, e projetos que batem nos motivos de rejeição acima.",
+        },
+        {
+          name: "3 - Você receberá um aviso no seu privado se o seu PL passar na fiscalização.",
+          value:
+            "Se você tiver o privado fechado, e o seu PL for rejeitado, você não vai saber o motivo. Procure o #suporte para mais informações.",
+        },
+        {
+          name: "4 - Se o seu projeto for aceito na fiscalização, uma thread será aberta aqui mesmo nesse canal.",
+          value:
+            "Você é livre para mandar contexto adicional sobre o seu PL, mas não deve marcar o @lfpanelli.",
         },
       ])
       .setColor("DarkButNotBlack");
