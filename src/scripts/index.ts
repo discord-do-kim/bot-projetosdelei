@@ -2,8 +2,8 @@ import { ProjetosDeLei } from "./ProjetosDeLei";
 
 export default [
   new ProjetosDeLei({
-    channelToVerifyId: "1061743983992254555",
-    channelToSendId: "1060713559509700668",
-    lfpanelli: "740977650423824554",
+    channelToVerifyId: "1063623492366512128",
+    channelToSendId: "1061713441443827722",
+    lfpanelli: "136583571308544001",
   }),
 ];
