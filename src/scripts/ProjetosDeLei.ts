@@ -404,13 +404,17 @@ export class ProjetosDeLei extends ScriptHandler {
     return new EmbedBuilder()
       .setTitle("FAQ SOBRE OS PROJETOS DE LEI")
       .setDescription(
-        "Leia os cards acima antes de mandar o seu PL, para que ele não seja rejeitado (Por qual motivo minha PL foi rejeitada?) ou removido. :)"
+        "Leia os cards acima antes de mandar o seu PL, para que ele não seja rejeitado ou removido. :)"
       )
       .setFields([
         {
           name: "Como mandar a sugestão de um projeto de lei?",
-          value:
-            "1 - Primeiro precisamos que o seu PL esteja de acordo com o FAQ acima.",
+          value: `
+1 - Primeiro precisamos que o seu PL esteja de acordo com o FAQ acima.,
+2 - Pressione o botão abaixo e então preencha o título e a descrição do seu projeto de lei.",
+3 - É importante estar com a DM liberada para esse servidor, pois assim você recebe um feedback se o seu projeto foi aceito ou rejeitado pela fiscalização de qualidade."
+4 - Se estiver tudo de acordo, você será notificado aqui mesmo, em uma thread.
+5 - Se um moderador rejeitar, você receberá o motivo na DM, junto com uma cópia do seu projeto de lei.`,
         },
       ])
       .setColor("DarkButNotBlack");
