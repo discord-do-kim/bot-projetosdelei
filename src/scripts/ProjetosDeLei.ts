@@ -433,7 +433,9 @@ export class ProjetosDeLei extends ScriptHandler {
           });
         } catch (e) {
           console.log(
-            `Um erro aconteceu. Mais informações: \n\n\n\n${e}\n\n\n\n`
+            `\n\n\nUm erro aconteceu. ${new Date().toLocaleString("pt-BR", {
+              dateStyle: "full",
+            })} Mais informações: \n\n\n\n${e}\n\n\n\n`
           );
         }
       });
