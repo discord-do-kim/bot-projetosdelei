@@ -102,344 +102,359 @@ export class ProjetosDeLei extends ScriptHandler {
     });
 
     const MessageCollector = faqMessage.createMessageComponentCollector();
+    try {
+      MessageCollector.on("collect", async (interaction: ButtonInteraction) => {
+        if (!interaction.isButton()) return;
 
-    MessageCollector.on("collect", async (interaction: ButtonInteraction) => {
-      if (!interaction.isButton()) return;
+        const title = new TextInputBuilder({
+          label: "Título da sugestão",
+          required: true,
+          maxLength: 80,
+          minLength: 10,
+          placeholder: "Descreva brevemente o seu projeto de lei.",
+          style: TextInputStyle.Short,
+          customId: this.customIds.titleField,
+        });
 
-      const title = new TextInputBuilder({
-        label: "Título da sugestão",
-        required: true,
-        maxLength: 80,
-        minLength: 10,
-        placeholder: "Descreva brevemente o seu projeto de lei.",
-        style: TextInputStyle.Short,
-        customId: this.customIds.titleField,
-      });
+        const content = new TextInputBuilder({
+          label: "Conteúdo do seu Projeto:",
+          required: true,
+          placeholder:
+            "Foque no conteúdo principal, para que ele não seja negado pela moderação do servidor.",
+          style: TextInputStyle.Paragraph,
+          customId: this.customIds.contentField,
+        });
 
-      const content = new TextInputBuilder({
-        label: "Conteúdo do seu Projeto:",
-        required: true,
-        placeholder:
-          "Foque no conteúdo principal, para que ele não seja negado pela moderação do servidor.",
-        style: TextInputStyle.Paragraph,
-        customId: this.customIds.contentField,
-      });
+        const modal = new ModalBuilder({
+          customId: this.customIds.projectForm,
+          title: "Envia sua sugestão!",
+          components: [
+            new ActionRowBuilder<TextInputBuilder>().addComponents(title),
+            new ActionRowBuilder<TextInputBuilder>().addComponents(content),
+          ],
+        });
 
-      const modal = new ModalBuilder({
-        customId: this.customIds.projectForm,
-        title: "Envia sua sugestão!",
-        components: [
-          new ActionRowBuilder<TextInputBuilder>().addComponents(title),
-          new ActionRowBuilder<TextInputBuilder>().addComponents(content),
-        ],
-      });
+        await interaction.showModal(modal);
 
-      await interaction.showModal(modal);
+        const collector = new InteractionCollector(this.client, {
+          interactionType: InteractionType.ModalSubmit,
+          filter: (modal) => interaction.user.id === modal.user.id,
+        });
 
-      const collector = new InteractionCollector(this.client, {
-        interactionType: InteractionType.ModalSubmit,
-        filter: (modal) => interaction.user.id === modal.user.id,
-      });
+        collector.on("collect", async (modal) => {
+          try {
+            if (!modal.isModalSubmit()) return;
 
-      collector.on("collect", async (modal) => {
-        try {
-          if (!modal.isModalSubmit()) return;
+            const title = modal.fields.getTextInputValue(
+              this.customIds.titleField
+            );
 
-          const title = modal.fields.getTextInputValue(
-            this.customIds.titleField
-          );
+            const content = modal.fields.getTextInputValue(
+              this.customIds.contentField
+            );
 
-          const content = modal.fields.getTextInputValue(
-            this.customIds.contentField
-          );
+            if (!this.channelToVerify.isTextBased()) {
+              await modal.reply({
+                content:
+                  "Não foi possível enviar a sua sugestão de projeto de lei. Por favor, abra um ticket clicando no botão abaixo.",
+                ephemeral: true,
+                components: [this.suporteButton],
+              });
+              return;
+            }
 
-          if (!this.channelToVerify.isTextBased()) {
+            const user = interaction.user;
+
+            const embed = new EmbedBuilder({
+              author: { name: user.username, iconURL: user.avatarURL() },
+              title,
+              description: content,
+              color: Colors.Blue,
+              footer: { text: interaction.user.id },
+              timestamp: new Date(),
+            });
+
+            const aproved = new ButtonBuilder({
+              label: "Aprovar",
+              customId: this.customIds.aprovedButton,
+              style: ButtonStyle.Success,
+            });
+
+            const reject = new ButtonBuilder({
+              label: "Rejeitar",
+              customId: this.customIds.rejectButton,
+              style: ButtonStyle.Danger,
+            });
+
+            const button = new ActionRowBuilder<ButtonBuilder>({
+              components: [aproved, reject],
+            });
+
+            const message = await this.channelToVerify.send({
+              embeds: [embed],
+              components: [button],
+            });
+
             await modal.reply({
               content:
-                "Não foi possível enviar a sua sugestão de projeto de lei. Por favor, abra um ticket clicando no botão abaixo.",
+                "A qualidade da sua sugestão será analisada pelos moderadores. Você será notificado no privado se a sua sugestão for aceita/rejeitada e o motivo!",
               ephemeral: true,
-              components: [this.suporteButton],
             });
-            return;
-          }
 
-          const user = interaction.user;
+            collector.stop();
 
-          const embed = new EmbedBuilder({
-            author: { name: user.username, iconURL: user.avatarURL() },
-            title,
-            description: content,
-            color: Colors.Blue,
-            footer: { text: interaction.user.id },
-            timestamp: new Date(),
-          });
+            const inspectionColletor =
+              message.createMessageComponentCollector();
 
-          const aproved = new ButtonBuilder({
-            label: "Aprovar",
-            customId: this.customIds.aprovedButton,
-            style: ButtonStyle.Success,
-          });
-
-          const reject = new ButtonBuilder({
-            label: "Rejeitar",
-            customId: this.customIds.rejectButton,
-            style: ButtonStyle.Danger,
-          });
-
-          const button = new ActionRowBuilder<ButtonBuilder>({
-            components: [aproved, reject],
-          });
-
-          const message = await this.channelToVerify.send({
-            embeds: [embed],
-            components: [button],
-          });
-
-          await modal.reply({
-            content:
-              "A qualidade da sua sugestão será analisada pelos moderadores. Você será notificado no privado se a sua sugestão for aceita/rejeitada e o motivo!",
-            ephemeral: true,
-          });
-
-          collector.stop();
-
-          const inspectionColletor = message.createMessageComponentCollector();
-
-          inspectionColletor.on("collect", async (inspecion) => {
-            if (!inspecion.isButton()) return;
-            switch (inspecion.customId) {
-              case this.customIds.aprovedButton: {
-                await inspecion.deferReply({ ephemeral: true });
-                try {
-                  const channel = interaction.channel;
-                  if (
-                    !channel.isTextBased() ||
-                    channel.isDMBased() ||
-                    channel.isVoiceBased() ||
-                    channel.isThread()
-                  ) {
-                    throw new Error("");
-                  }
-                  const thread = await channel.threads.create({
-                    name: embed.toJSON().title,
-                    reason: "Novo projeto de lei",
-                    autoArchiveDuration: ThreadAutoArchiveDuration.OneWeek,
-                    invitable: false as never,
-                    type: ChannelType.PrivateThread as never,
-                  });
-
-                  const projectMessage = await thread.send({
-                    content: `Projeto de lei sugerido por: ${interaction.user}.`,
-                  });
-
-                  await thread.send({
-                    embeds: [new EmbedBuilder({ description: content, title })],
-                  });
-
-                  thread.members.add(interaction.user);
-
-                  const responsible = await projectMessage.reply({
-                    content: `Responsável pela fiscalização do canal: ${interaction.user}`,
-                  });
-
-                  await responsible.delete();
-
-                  await projectMessage.reply({
-                    content: `Projeto de lei sugerido para você, <@${this.lfpanelli}>!`,
-                  });
-
-                  const acceptEmbed = new EmbedBuilder({
-                    footer: {
-                      iconURL: interaction.user.avatarURL({
-                        size: 32,
-                      }),
-                      text: `Aprovado por @${interaction.user.username}`,
-                    },
-                    timestamp: new Date(),
-                    color: Colors.Green,
-                  });
-
-                  embed.setColor(Colors.Green);
-
-                  message.edit({
-                    embeds: [embed, acceptEmbed],
-                    components: [],
-                  });
-
+            inspectionColletor.on("collect", async (inspecion) => {
+              if (!inspecion.isButton()) return;
+              switch (inspecion.customId) {
+                case this.customIds.aprovedButton: {
+                  await inspecion.deferReply({ ephemeral: true });
                   try {
-                    await interaction.user.send({
-                      content:
-                        "Pode acompanhar o andamento do seu projeto clicando no botão abaixo. Por favor, não marque o Panelli. Não acelere o processo e boa sorte com a análise de seu projeto!",
+                    const channel = interaction.channel;
+                    if (
+                      !channel.isTextBased() ||
+                      channel.isDMBased() ||
+                      channel.isVoiceBased() ||
+                      channel.isThread()
+                    ) {
+                      throw new Error("");
+                    }
+                    const thread = await channel.threads.create({
+                      name: embed.toJSON().title,
+                      reason: "Novo projeto de lei",
+                      autoArchiveDuration: ThreadAutoArchiveDuration.OneWeek,
+                      invitable: false as never,
+                      type: ChannelType.PrivateThread as never,
+                    });
+
+                    const projectMessage = await thread.send({
+                      content: `Projeto de lei sugerido por: ${interaction.user}.`,
+                    });
+
+                    await thread.send({
                       embeds: [
-                        new EmbedBuilder({
-                          title: embed.toJSON().title,
-                          color: Colors.Green,
-                          description: embed.toJSON().description,
-                        }),
-                      ],
-                      components: [
-                        new ActionRowBuilder<ButtonBuilder>({
-                          components: [
-                            new ButtonBuilder({
-                              label: "Ver andamento do projeto.",
-                              style: ButtonStyle.Link,
-                              url: thread.url,
-                            }),
-                          ],
-                        }),
+                        new EmbedBuilder({ description: content, title }),
                       ],
                     });
-                  } catch (e) {
-                    const alertEmbed = new EmbedBuilder({
+
+                    thread.members.add(interaction.user);
+
+                    const responsible = await projectMessage.reply({
+                      content: `Responsável pela fiscalização do canal: ${interaction.user}`,
+                    });
+
+                    await responsible.delete();
+
+                    await projectMessage.reply({
+                      content: `Projeto de lei sugerido para você, <@${this.lfpanelli}>!`,
+                    });
+
+                    const acceptEmbed = new EmbedBuilder({
                       footer: {
-                        iconURL: interaction.user.avatarURL(),
-                        text: "Não foi possível avisar o usuário no privado.",
+                        iconURL: interaction.user.avatarURL({
+                          size: 32,
+                        }),
+                        text: `Aprovado por @${interaction.user.username}`,
                       },
                       timestamp: new Date(),
+                      color: Colors.Green,
                     });
+
+                    embed.setColor(Colors.Green);
 
                     message.edit({
-                      embeds: [embed, acceptEmbed, alertEmbed],
-                    });
-                  }
-                } catch (e) {
-                  await inspecion.followUp({
-                    content: `Não foi possível aceitar essa sugestão. Um erro aconteceu: ${e.toString()}. `,
-                    ephemeral: true,
-                  });
-                } finally {
-                  await inspecion.followUp({
-                    content: "Processo concluído.",
-                    ephemeral: true,
-                  });
-                }
-                break;
-              }
-              case this.customIds.rejectButton: {
-                const rejectReason = new ActionRowBuilder<TextInputBuilder>({
-                  components: [
-                    {
-                      type: ComponentType.TextInput,
-                      customId: this.customIds.rejectReason,
-                      required: true,
-                      style: TextInputStyle.Paragraph,
-                      label: "Descreva aqui o por quê.",
-                      value:
-                        "O seu projeto ou fere as diretrizes legais pré-estabelecidas, ou o seu projeto está fora dos conformes, de acordo com o tutorial exposto no canal de projetos-de-lei. Por favor, peço dê uma olhada antes de enviar o seu PL.",
-                    },
-                  ],
-                });
-
-                const modal = new ModalBuilder({
-                  customId: this.customIds.rejectForm,
-                  title: "Por que você rejeitou?",
-                  components: [rejectReason],
-                });
-
-                await inspecion.showModal(modal);
-
-                const collector = new InteractionCollector(this.client, {
-                  filter: (modal) => modal.user.id === inspecion.user.id,
-                  interactionType: InteractionType.ModalSubmit,
-                });
-
-                collector.on(
-                  "collect",
-                  async (modal: ModalSubmitInteraction) => {
-                    if (!modal.isModalSubmit()) return;
-                    embed.setColor(Colors.Red);
-                    modal.deferReply({ ephemeral: true });
-
-                    const rejectReason = modal.fields.getTextInputValue(
-                      this.customIds.rejectReason
-                    );
-
-                    const rejectEmbed = new EmbedBuilder({
-                      title: "Motivo da Rejeição:",
-                      description: rejectReason,
-                      footer: {
-                        icon_url: modal.user.avatarURL(),
-                        text: "Rejeitado por @" + modal.user.username,
-                      },
-                      color: Colors.Red,
-                      timestamp: new Date(),
-                    });
-
-                    await message.edit({
-                      embeds: [embed, rejectEmbed],
+                      embeds: [embed, acceptEmbed],
                       components: [],
                     });
 
                     try {
                       await interaction.user.send({
-                        content: `Seu projeto "${title}" foi rejeitado.`,
+                        content:
+                          "Pode acompanhar o andamento do seu projeto clicando no botão abaixo. Por favor, não marque o Panelli. Não acelere o processo e boa sorte com a análise de seu projeto!",
                         embeds: [
                           new EmbedBuilder({
-                            ...embed.toJSON(),
-                            footer: undefined,
-                            author: undefined,
+                            title: embed.toJSON().title,
+                            color: Colors.Green,
+                            description: embed.toJSON().description,
                           }),
-                          rejectEmbed,
                         ],
-                      });
-
-                      const faqButton = new ActionRowBuilder<ButtonBuilder>({
                         components: [
-                          new ButtonBuilder({
-                            style: ButtonStyle.Link,
-                            label: "Faq Projetos de Lei",
-                            url: interaction.channel.url,
+                          new ActionRowBuilder<ButtonBuilder>({
+                            components: [
+                              new ButtonBuilder({
+                                label: "Ver andamento do projeto.",
+                                style: ButtonStyle.Link,
+                                url: thread.url,
+                              }),
+                            ],
                           }),
                         ],
-                      });
-
-                      await interaction.user.send({
-                        content:
-                          "Se precisar de mais informações, clique nos botões abaixo:",
-                        components: [this.suporteButton, faqButton],
                       });
                     } catch (e) {
-                      message.edit({
-                        embeds: [
-                          embed,
-                          rejectEmbed,
-                          new EmbedBuilder({
-                            footer: {
-                              iconURL: interaction.user.avatarURL(),
-                              text: "Não foi possível notificar o usuário no privado.",
-                            },
-                            color: Colors.Red,
-                            timestamp: new Date(),
-                          }),
-                        ],
+                      const alertEmbed = new EmbedBuilder({
+                        footer: {
+                          iconURL: interaction.user.avatarURL(),
+                          text: "Não foi possível avisar o usuário no privado.",
+                        },
+                        timestamp: new Date(),
                       });
-                    } finally {
-                      modal.followUp("Processo concluído.");
-                      collector.stop();
-                    }
-                  }
-                );
 
-                break;
+                      message.edit({
+                        embeds: [embed, acceptEmbed, alertEmbed],
+                      });
+                    }
+                  } catch (e) {
+                    await inspecion.followUp({
+                      content: `Não foi possível aceitar essa sugestão. Um erro aconteceu: ${e.toString()}. `,
+                      ephemeral: true,
+                    });
+                  } finally {
+                    await inspecion.followUp({
+                      content: "Processo concluído.",
+                      ephemeral: true,
+                    });
+                  }
+                  break;
+                }
+                case this.customIds.rejectButton: {
+                  const rejectReason = new ActionRowBuilder<TextInputBuilder>({
+                    components: [
+                      {
+                        type: ComponentType.TextInput,
+                        customId: this.customIds.rejectReason,
+                        required: true,
+                        style: TextInputStyle.Paragraph,
+                        label: "Descreva aqui o por quê.",
+                        value:
+                          "O seu projeto ou fere as diretrizes legais pré-estabelecidas, ou o seu projeto está fora dos conformes, de acordo com o tutorial exposto no canal de projetos-de-lei. Por favor, peço dê uma olhada antes de enviar o seu PL.",
+                      },
+                    ],
+                  });
+
+                  const modal = new ModalBuilder({
+                    customId: this.customIds.rejectForm,
+                    title: "Por que você rejeitou?",
+                    components: [rejectReason],
+                  });
+
+                  await inspecion.showModal(modal);
+
+                  const collector = new InteractionCollector(this.client, {
+                    filter: (modal) => modal.user.id === inspecion.user.id,
+                    interactionType: InteractionType.ModalSubmit,
+                  });
+
+                  collector.on(
+                    "collect",
+                    async (modal: ModalSubmitInteraction) => {
+                      if (!modal.isModalSubmit()) return;
+                      embed.setColor(Colors.Red);
+                      modal.deferReply({ ephemeral: true });
+
+                      const rejectReason = modal.fields.getTextInputValue(
+                        this.customIds.rejectReason
+                      );
+
+                      const rejectEmbed = new EmbedBuilder({
+                        title: "Motivo da Rejeição:",
+                        description: rejectReason,
+                        footer: {
+                          icon_url: modal.user.avatarURL(),
+                          text: "Rejeitado por @" + modal.user.username,
+                        },
+                        color: Colors.Red,
+                        timestamp: new Date(),
+                      });
+
+                      await message.edit({
+                        embeds: [embed, rejectEmbed],
+                        components: [],
+                      });
+
+                      try {
+                        await interaction.user.send({
+                          content: `Seu projeto "${title}" foi rejeitado.`,
+                          embeds: [
+                            new EmbedBuilder({
+                              ...embed.toJSON(),
+                              footer: undefined,
+                              author: undefined,
+                            }),
+                            rejectEmbed,
+                          ],
+                        });
+
+                        const faqButton = new ActionRowBuilder<ButtonBuilder>({
+                          components: [
+                            new ButtonBuilder({
+                              style: ButtonStyle.Link,
+                              label: "Faq Projetos de Lei",
+                              url: interaction.channel.url,
+                            }),
+                          ],
+                        });
+
+                        await interaction.user.send({
+                          content:
+                            "Se precisar de mais informações, clique nos botões abaixo:",
+                          components: [this.suporteButton, faqButton],
+                        });
+                      } catch (e) {
+                        message.edit({
+                          embeds: [
+                            embed,
+                            rejectEmbed,
+                            new EmbedBuilder({
+                              footer: {
+                                iconURL: interaction.user.avatarURL(),
+                                text: "Não foi possível notificar o usuário no privado.",
+                              },
+                              color: Colors.Red,
+                              timestamp: new Date(),
+                            }),
+                          ],
+                        });
+                      } finally {
+                        modal.followUp("Processo concluído.");
+                        collector.stop();
+                      }
+                    }
+                  );
+
+                  break;
+                }
+                default:
+                  inspecion.followUp({
+                    ephemeral: true,
+                    content:
+                      "Um erro aconteceu, não fui capaz de reconhecer a interação feita.",
+                  });
+                  break;
               }
-              default:
-                inspecion.followUp({
-                  ephemeral: true,
-                  content:
-                    "Um erro aconteceu, não fui capaz de reconhecer a interação feita.",
-                });
-                break;
-            }
-          });
-        } catch (e) {
-          console.log(
-            `\n\n\nUm erro aconteceu. ${new Date().toLocaleString("pt-BR", {
-              dateStyle: "full",
-            })} Mais informações: \n\n\n\n${e}\n\n\n\n`
-          );
-        }
+            });
+          } catch (e) {
+            console.log(
+              `\n\n\nUm erro aconteceu. ${new Date().toLocaleString("pt-BR", {
+                dateStyle: "full",
+                timeStyle: "full",
+              })} Mais informações: \n\n\n\n${e}\n\n\n\n`
+            );
+          }
+        });
       });
-    });
+    } catch (e) {
+      console.log(
+        "Um erro aconteceu as: ",
+        new Date().toLocaleString("pt-BR", {
+          dateStyle: "full",
+          timeStyle: "full",
+        }),
+        "\n\n\n",
+        e.toString()
+      );
+    }
   }
 
   get rejeitadasEmbed() {
