@@ -201,8 +201,6 @@ export class ProjetosDeLei extends ScriptHandler {
               ephemeral: true,
             });
 
-            collector.stop();
-
             const inspectionColletor =
               message.createMessageComponentCollector();
 
@@ -434,6 +432,8 @@ export class ProjetosDeLei extends ScriptHandler {
                   break;
               }
             });
+            
+            collector.stop();
           } catch (e) {
             console.log(
               `\n\n\nUm erro aconteceu. ${new Date().toLocaleString("pt-BR", {
