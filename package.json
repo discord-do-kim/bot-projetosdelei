@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "nodemon",
     "prestart": "rm -rf ./build && tsc",
-    "start": "cross-env NODE_ENV=production node build/index.js",
+    "start": "node build/index.js",
     "build": "rm -rf ./build && tsc",
     "lint": "eslint src/**/*.ts",
     "commands": "ts-node ./src/deploy-commands.ts"
