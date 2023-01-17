@@ -1,15 +1,20 @@
-import { DISCORD_TOKEN } from "./config";
+import { DISCORD_TOKEN, MONGO_SRV } from "./config";
 import { client } from "./client";
-import scripts from "./scripts";
-import { Events } from "discord.js";
+import mongoose from "mongoose";
+import { eventDispatcher } from "./dispatcher/EventDispatcher";
+import projetosDeLei from "./addons/projetosDeLei";
+
+projetosDeLei();
 
 (async () => {
-  client.once(Events.ClientReady, (client) => {
-    console.log(`Logged in ${client.user.tag}`);
-    scripts.forEach((script) => {
-      script.client = client;
-      script.run();
+  mongoose.set("strictQuery", true);
+  await mongoose.connect(MONGO_SRV);
+
+  eventDispatcher.events.map((event) => {
+    client.on(event as string, (...args) => {
+      eventDispatcher.dispatchEvent(event, ...args);
     });
   });
+
   await client.login(DISCORD_TOKEN);
 })();

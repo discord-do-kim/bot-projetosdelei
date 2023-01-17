@@ -7,6 +7,7 @@
     "dev": "nodemon",
     "prestart": "rm -rf ./build && tsc",
     "start": " node build/index.js",
+    "debug": "ts-node ./src/index.ts",
     "build": "rm -rf ./build && tsc",
     "lint": "eslint src/**/*.ts",
     "commands": "ts-node ./src/deploy-commands.ts"
@@ -33,7 +34,9 @@
     "typescript": "^4.8.3"
   },
   "dependencies": {
-    "discord.js": "^14.7.1"
+    "dayjs": "^1.11.7",
+    "discord.js": "^14.7.1",
+    "mongoose": "^6.8.3"
   },
   "engines": {
     "node": ">=16.9.0"

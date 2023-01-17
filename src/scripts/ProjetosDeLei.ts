@@ -15,7 +15,6 @@ import {
   TextInputStyle,
   ThreadAutoArchiveDuration,
 } from "discord.js";
-import { projetosData } from "../db/projetosData";
 import { ScriptHandler } from "./ScriptHandler";
 
 export class ProjetosDeLei extends ScriptHandler {
@@ -432,7 +431,7 @@ export class ProjetosDeLei extends ScriptHandler {
                   break;
               }
             });
-            
+
             collector.stop();
           } catch (e) {
             console.log(
@@ -460,11 +459,9 @@ export class ProjetosDeLei extends ScriptHandler {
   get rejeitadasEmbed() {
     return new EmbedBuilder({
       title: "POR QUE MINHA SUGESTÃO FOI REJEITADA?",
-      description: projetosData.rejeitados,
       color: Colors.Red,
       footer: {
         text: "lfpanelli",
-        iconURL: projetosData.avatarPanelli,
       },
     });
   }
@@ -472,11 +469,9 @@ export class ProjetosDeLei extends ScriptHandler {
   get repetidasEmbed() {
     return new EmbedBuilder({
       title: "SUGESTÕES RECORRENTES.",
-      description: projetosData.recorrentes,
       color: Colors.Yellow,
       footer: {
         text: "lfpanelli",
-        iconURL: projetosData.avatarPanelli,
       },
     });
   }
@@ -484,7 +479,6 @@ export class ProjetosDeLei extends ScriptHandler {
   get dicasEmbed() {
     return new EmbedBuilder({
       title: "BEM-VINDO AO DISCORD DE SUGESTÕES LEGISLATIVAS.",
-      description: projetosData.tip,
       color: Colors.Blue,
     });
   }
