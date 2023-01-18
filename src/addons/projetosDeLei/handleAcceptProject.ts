@@ -13,7 +13,6 @@ import { Status } from "./enums/Status";
 import { config } from "./config";
 import { openThread } from "./openThread";
 import { updateOutdatedEmbed } from "./updateOutdatedEmbed";
-import { Buttons } from "../../utils/Buttons";
 import { Components } from "./Components";
 
 export async function handleAcceptProject(interaction: Interaction) {
@@ -69,7 +68,10 @@ export async function handleAcceptProject(interaction: Interaction) {
 
     embed.setColor(Colors.Green);
 
-    await message.edit(responseComponents);
+    await message.edit({
+      embeds: responseComponents.embeds.splice(0, 2),
+      components: responseComponents.components,
+    });
 
     await user
       .send({
@@ -95,18 +97,7 @@ export async function handleAcceptProject(interaction: Interaction) {
         ],
       })
       .catch(async (e) => {
-        const alertEmbed = new EmbedBuilder({
-          footer: {
-            iconURL: interaction.user.avatarURL(),
-            text: "Não foi possível avisar o usuário no privado.",
-          },
-          color: Colors.Yellow,
-          timestamp: new Date(),
-        });
-
-        await message.edit({
-          embeds: [embed, acceptEmbed, alertEmbed],
-        });
+        await message.edit(await Components.acceptedComponents(project));
 
         project = await project.updateOne({ "meta.notified": false });
 

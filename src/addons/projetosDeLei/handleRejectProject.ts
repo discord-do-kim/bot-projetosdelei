@@ -1,7 +1,6 @@
 import {
   Interaction,
   EmbedBuilder,
-  Colors,
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,

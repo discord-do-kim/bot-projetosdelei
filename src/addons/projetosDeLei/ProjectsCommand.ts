@@ -3,17 +3,10 @@ import {
   Interaction,
   ChatInputCommandInteraction,
   EmbedBuilder,
-  Colors,
-  ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle,
 } from "discord.js";
-import { client } from "../../client";
 import { CommandPattern } from "../../commands/CommandPattern";
 import { ProjetoDeLeiModel } from "../../models/ProjetoDeLei";
-import { config } from "./config";
 import { Components } from "./Components";
-import { StatusColors } from "./enums/Status";
 
 export class ProjectsCommand extends CommandPattern {
   command = new SlashCommandBuilder()

@@ -1,5 +1,5 @@
 import { ButtonBuilder } from "@discordjs/builders";
-import { ActionRowBuilder, ButtonStyle, ThreadChannel } from "discord.js";
+import { ActionRowBuilder, ButtonStyle } from "discord.js";
 
 export class Buttons {
   public static support() {
