@@ -6,17 +6,14 @@ import {
   ActionRowBuilder,
   InteractionCollector,
   InteractionType,
-  EmbedBuilder,
-  Colors,
-  ButtonStyle,
-  ButtonBuilder,
 } from "discord.js";
 import { Error as MongooseError } from "mongoose";
 import { client } from "../../client";
 import { ProjetoDeLeiModel } from "../../models/ProjetoDeLei";
 import { fetchError } from "../../utils/fetchError";
-import { supportButton } from "../../utils/supportButton";
+import { Buttons } from "../../utils/Buttons";
 import { config } from "./config";
+import { Components } from "./Components";
 
 export async function createNewProjetoDeLei(interaction: Interaction) {
   if (!interaction.isButton()) return;
@@ -82,30 +79,7 @@ export async function createNewProjetoDeLei(interaction: Interaction) {
           userId: user.id,
         }).save();
 
-        const embed = new EmbedBuilder({
-          author: { name: user.username, iconURL: user.avatarURL() },
-          title: projeto.title,
-          description: projeto.content,
-          color: Colors.Blue,
-          footer: { text: projeto._id.toString() },
-          timestamp: new Date(),
-        });
-
-        const reject = new ButtonBuilder({
-          label: "Rejeitar",
-          customId: config.customIds.rejectButton,
-          style: ButtonStyle.Danger,
-        });
-
-        const aproved = new ButtonBuilder({
-          label: "Aprovar",
-          customId: config.customIds.aprovedButton,
-          style: ButtonStyle.Success,
-        });
-
-        const button = new ActionRowBuilder<ButtonBuilder>({
-          components: [aproved, reject],
-        });
+        const responseComponents = await Components.pendingComponents(projeto);
 
         await modal.followUp({
           content:
@@ -114,20 +88,13 @@ export async function createNewProjetoDeLei(interaction: Interaction) {
 
         if (!channelToVerify.isTextBased()) return;
 
-        await channelToVerify.send({
-          embeds: [embed],
-          components: [button],
-        });
+        await channelToVerify.send(responseComponents);
       } catch (e) {
         if (e instanceof Error) {
           await modal.followUp({
             content:
               "Não foi possível enviar a sua sugestão de projeto de lei. Tente novamente. Se o erro persistir, abra um ticket clicando no botão abaixo.",
-            components: [
-              new ActionRowBuilder<ButtonBuilder>({
-                components: [supportButton],
-              }),
-            ],
+            components: [Buttons.support()],
           });
         }
         throw e;

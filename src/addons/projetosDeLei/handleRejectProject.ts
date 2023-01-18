@@ -17,8 +17,10 @@ import { Error } from "mongoose";
 import { client } from "../../client";
 import { ProjetoDeLeiModel } from "../../models/ProjetoDeLei";
 import { fetchError } from "../../utils/fetchError";
-import { supportButton } from "../../utils/supportButton";
+import { Buttons } from "../../utils/Buttons";
 import { config } from "./config";
+import { updateOutdatedEmbed } from "./updateOutdatedEmbed";
+import { Components } from "./Components";
 
 export async function handleRejectProject(interaction: Interaction) {
   if (!interaction.isButton()) return;
@@ -42,16 +44,15 @@ export async function handleRejectProject(interaction: Interaction) {
       return;
     }
 
+    const userOwner = await client.users.fetch(project.userId);
+
     if (project.meta.status !== "pending") {
       await interaction.reply({
-        content: `Esse já foi tratado e contém o status de ${project.meta.status}`,
+        content: `Esse já foi tratado e contém o status de ${project.meta.status}.`,
         ephemeral: true,
       });
 
-      const message = await interaction.message.fetch();
-
-      message.edit({ components: [] });
-
+      await updateOutdatedEmbed(interaction, projectId);
       return;
     }
 
@@ -85,43 +86,31 @@ export async function handleRejectProject(interaction: Interaction) {
     collector.on("collect", async (modal: ModalSubmitInteraction) => {
       try {
         if (!modal.isModalSubmit()) return;
-        embed.setColor(Colors.Red);
         await modal.deferReply({ ephemeral: true });
 
         const rejectReason = modal.fields.getTextInputValue(
           config.customIds.rejectReason
         );
 
-        const rejectedProject = await project.updateOne(
+        const rejectedProject = await ProjetoDeLeiModel.findByIdAndUpdate(
+          { _id: projectId },
           {
-            meta: {
-              moderator: interaction.user.id,
-              status: "rejected",
-              rejectReason: rejectReason,
-              handledAt: new Date(),
-            },
+            "meta.moderador": interaction.user.id,
+            "meta.status": "rejected",
+            "meta.rejectReason": rejectReason,
+            "meta.handledAt": new Date(),
           },
-          { new: true }
+          { returnDocument: "after" }
         );
 
-        const rejectEmbed = new EmbedBuilder({
-          title: "Motivo da Rejeição:",
-          description: rejectReason,
-          footer: {
-            icon_url: modal.user.avatarURL(),
-            text: "Rejeitado por @" + modal.user.username,
-          },
-          color: Colors.Red,
-          timestamp: rejectedProject.meta?.handledAt,
-        });
+        const responseComponents = await Components.rejectedComponents(
+          rejectedProject
+        );
 
-        await message.edit({
-          embeds: [embed, rejectEmbed],
-          components: [],
-        });
+        await message.edit(responseComponents);
 
         try {
-          await interaction.user.send({
+          await userOwner.send({
             content: `Seu projeto "${project.title}" foi rejeitado.`,
             embeds: [
               new EmbedBuilder({
@@ -129,13 +118,14 @@ export async function handleRejectProject(interaction: Interaction) {
                 footer: undefined,
                 author: undefined,
               }),
-              rejectEmbed,
+              ...responseComponents.embeds.splice(0, 2),
             ],
           });
 
+          rejectedProject.updateOne({ "meta.notified": true });
+
           const buttons = new ActionRowBuilder<ButtonBuilder>({
             components: [
-              supportButton,
               new ButtonBuilder({
                 style: ButtonStyle.Link,
                 label: "Faq Projetos de Lei",
@@ -144,33 +134,25 @@ export async function handleRejectProject(interaction: Interaction) {
             ],
           });
 
-          await interaction.user.send({
+          await userOwner.send({
             content:
               "Se precisar de mais informações, clique nos botões abaixo:",
-            components: [buttons],
+            components: [buttons, Buttons.support()],
           });
         } catch (e) {
-          message.edit({
-            embeds: [
-              embed,
-              rejectEmbed,
-              new EmbedBuilder({
-                footer: {
-                  iconURL: interaction.user.avatarURL(),
-                  text: "Não foi possível notificar o usuário no privado.",
-                },
-                color: Colors.Red,
-                timestamp: new Date(),
-              }),
-            ],
-          });
+          message.edit(responseComponents);
         }
 
-        await modal.followUp("Processo concluído.");
+        await modal.followUp({
+          content: "Processo concluído.",
+          ephemeral: true,
+        });
       } catch (e) {
         await fetchError(e);
         await modal.followUp({
-          content: "Um erro aconteceu, não foi possível completar a ação",
+          content:
+            "Um erro aconteceu, não foi possível completar a ação:\n" +
+            e.toString(),
           ephemeral: true,
         });
       }

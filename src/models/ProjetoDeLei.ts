@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-interface ProjetoDeLei {
+export interface ProjetoDeLei {
   userId: string;
   title: string;
   content: string;
@@ -10,6 +10,8 @@ interface ProjetoDeLei {
     status: "pending" | "accepted" | "rejected";
     rejectReason?: string;
     handledAt?: Date;
+    notified: boolean;
+    thread?: string;
   };
 }
 
@@ -47,6 +49,14 @@ const projetoDeLeiSchema = new mongoose.Schema<ProjetoDeLei>({
     handledAt: {
       required: false,
       type: Date,
+    },
+    notified: {
+      type: Boolean,
+      default: false,
+    },
+    thread: {
+      required: false,
+      type: String,
     },
   },
 });

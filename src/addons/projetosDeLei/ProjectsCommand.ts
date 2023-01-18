@@ -12,6 +12,8 @@ import { client } from "../../client";
 import { CommandPattern } from "../../commands/CommandPattern";
 import { ProjetoDeLeiModel } from "../../models/ProjetoDeLei";
 import { config } from "./config";
+import { Components } from "./Components";
+import { StatusColors } from "./enums/Status";
 
 export class ProjectsCommand extends CommandPattern {
   command = new SlashCommandBuilder()
@@ -47,7 +49,10 @@ export class ProjectsCommand extends CommandPattern {
         .setName("id")
         .setDescription("filtrar pelo id do projeto.")
         .addStringOption((option) =>
-          option.setName("id").setDescription("filtrar pelo id do projeto.")
+          option
+            .setName("value")
+            .setDescription("O id do projeto.")
+            .setRequired(true)
         )
     );
 
@@ -80,57 +85,11 @@ export class ProjectsCommand extends CommandPattern {
 
       const projeto = await ProjetoDeLeiModel.findById(id);
 
-      const user = await client.users.cache.get(projeto.userId)?.fetch();
+      const response = await Components.handleProjectByStatus(projeto);
 
-      const embed = new EmbedBuilder({
-        title: projeto.title,
-        description: projeto.content,
-        author: {
-          name: user.username,
-          iconURL: user.avatarURL(),
-        },
-        footer: {
-          text: projeto._id.toString(),
-        },
-        timestamp: projeto.meta.createdAt,
-        color:
-          projeto.meta.status === "pending"
-            ? Colors.Blue
-            : projeto.meta.status === "accepted"
-            ? Colors.Green
-            : Colors.Red,
-      });
-
-      if (projeto.meta.status === "pending") {
-        const reject = new ButtonBuilder({
-          label: "Rejeitar",
-          customId: config.customIds.rejectButton,
-          style: ButtonStyle.Danger,
-        });
-
-        const aproved = new ButtonBuilder({
-          label: "Aprovar",
-          customId: config.customIds.aprovedButton,
-          style: ButtonStyle.Success,
-        });
-
-        const button = new ActionRowBuilder<ButtonBuilder>({
-          components: [aproved, reject],
-        });
-
-        await interaction.followUp({ embeds: [embed], components: [button] });
-        return;
-      }
-
-      const mod = await client.users.cache.get(projeto.meta.moderator).fetch();
-
-      embed.setFooter({ text: `${projeto.meta.status} por ${mod.username}` });
-
-      await interaction.followUp({ embeds: [embed] });
+      await interaction.followUp(response);
     } catch (e) {
-      await interaction.editReply({
-        content: "Não foi possível buscar por esse ID de projeto.",
-      });
+      interaction.followUp({ content: e.toString(), ephemeral: true });
     }
   }
 

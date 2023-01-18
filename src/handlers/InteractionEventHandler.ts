@@ -28,10 +28,13 @@ class InteractionEventHandler extends EventHandler {
           await handler(interaction, ...args);
         } catch (e) {
           await fetchError(e);
-          if (!interaction.isAutocomplete()) {
-            if (interaction.replied)
-              interaction.followUp({ ephemeral: true, content: e.toString() });
-            else interaction.reply({ ephemeral: true, content: e.toString() });
+          if (interaction.isAutocomplete()) return;
+          try {
+            await interaction.reply({ ephemeral: true, content: e.toString() });
+          } catch (e) {
+            await interaction
+              .followUp({ ephemeral: true, content: e.toString() })
+              .catch();
           }
         }
       }

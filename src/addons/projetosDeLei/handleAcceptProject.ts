@@ -1,7 +1,5 @@
 import {
-  ChannelType,
   Interaction,
-  ThreadAutoArchiveDuration,
   EmbedBuilder,
   Colors,
   ActionRowBuilder,
@@ -11,7 +9,12 @@ import {
 import { client } from "../../client";
 import { ProjetoDeLeiModel } from "../../models/ProjetoDeLei";
 import { fetchError } from "../../utils/fetchError";
+import { Status } from "./enums/Status";
 import { config } from "./config";
+import { openThread } from "./openThread";
+import { updateOutdatedEmbed } from "./updateOutdatedEmbed";
+import { Buttons } from "../../utils/Buttons";
+import { Components } from "./Components";
 
 export async function handleAcceptProject(interaction: Interaction) {
   if (!interaction.isButton()) return;
@@ -24,124 +27,52 @@ export async function handleAcceptProject(interaction: Interaction) {
   const message = await interaction.message.fetch();
   const embed = new EmbedBuilder(message.embeds[0]);
   const projectId = embed.toJSON().footer?.text;
-  const channel = await client.channels.cache
-    .get(config.send_channel)
-    .fetch()
-    .catch(async (e) => {
-      interaction.followUp(
-        "Não foi possível buscar o canal de criação de threads."
-      );
-      throw e;
-    });
 
   try {
-    const project = await ProjetoDeLeiModel.findById(projectId).catch(
+    let project = await ProjetoDeLeiModel.findById(projectId).catch(
       async (e) => {
-        await interaction.followUp(
-          "Não foi possível atualizar o banco de dados."
-        );
+        await interaction.followUp({
+          content: "Não foi possível atualizar o banco de dados.",
+          ephemeral: true,
+        });
         throw e;
       }
     );
-    await project.updateOne(
-      {
-        meta: {
-          moderator: interaction.user.id,
-          status: "accepted",
-          handledAt: new Date(),
-        },
-      },
-      { new: true }
-    );
 
-
-    if (
-      !channel.isTextBased() ||
-      channel.isDMBased() ||
-      channel.isVoiceBased() ||
-      channel.isThread()
-    ) {
-      await interaction.followUp(
-        "O canal para abrir threads não é um canal de texto."
-      );
-      throw new Error();
-    }
-
-    const thread = await channel.threads
-      .create({
-        name: embed.toJSON().title,
-        reason: "Novo projeto de lei",
-        autoArchiveDuration: ThreadAutoArchiveDuration.OneWeek,
-        invitable: false as never,
-        type: ChannelType.PrivateThread as never,
-      })
-      .catch(async (e) => {
-        await interaction.followUp(
-          "Não foi possível criar uma thread privada, você terá que cria-lá manualmente."
-        );
-        throw e;
+    if (project.meta.status !== "pending") {
+      await updateOutdatedEmbed(interaction, projectId);
+      await interaction.followUp({
+        content: `Esse já foi tratado e contém o status de ${
+          Status[project.meta.status]
+        }`,
+        ephemeral: true,
       });
 
-    const projectMessage = await thread
-      .send({
-        content: `Projeto de lei sugerido por: ${interaction.user}.`,
-        embeds: [
-          new EmbedBuilder({
-            title: project.title,
-            description: project.content,
-          }),
-        ],
-      })
-      .catch(() =>
-        interaction.followUp(
-          `Consegui criar a thread, mas não consegui enviar o projeto de lei. Você terá que enviar manualmente no canal ${thread}.`
-        )
-      );
+      return;
+    }
 
-    await thread.members.add(interaction.user).catch();
-
-    const responsible = await projectMessage
-      .reply({
-        content: `Responsável pela fiscalização do canal: ${interaction.user}`,
-      })
-      .catch(async () =>
-        interaction.followUp(
-          `Não foi possível te adicionar a thread automaticamente. Você pode entrar por aqui ${thread}.`
-        )
-      );
-
-    await responsible.delete().catch();
-
-    await projectMessage
-      .reply({
-        content: `Projeto de lei sugerido para você, <@${config.mention_user}>!`,
-      })
-      .catch(() =>
-        interaction.followUp(
-          `Não foi possível mencionar o <@${config.mention_user}> na thread. Você terá que mencioná-lo manualmente.`
-        )
-      );
-
-    const acceptEmbed = new EmbedBuilder({
-      footer: {
-        iconURL: interaction.user.avatarURL({
-          size: 32,
-        }),
-        text: `Aprovado por @${interaction.user.username}`,
+    project = await ProjetoDeLeiModel.findByIdAndUpdate(
+      { _id: projectId },
+      {
+        "meta.moderator": interaction.user.id,
+        "meta.status": "accepted",
+        "meta.handledAt": new Date(),
       },
-      timestamp: new Date(),
-      color: Colors.Green,
-    });
+      { returnDocument: "after" }
+    );
+
+    const user = await client.users.fetch(project.userId);
+
+    const thread = await openThread(projectId);
+
+    const responseComponents = await Components.acceptedComponents(project);
 
     embed.setColor(Colors.Green);
 
-    await message.edit({
-      embeds: [embed, acceptEmbed],
-      components: [],
-    });
+    await message.edit(responseComponents);
 
-    try {
-      await interaction.user.send({
+    await user
+      .send({
         content:
           "Pode acompanhar o andamento do seu projeto clicando no botão abaixo. Por favor, não marque o Panelli. Não acelere o processo e boa sorte com a análise de seu projeto!",
         embeds: [
@@ -162,21 +93,25 @@ export async function handleAcceptProject(interaction: Interaction) {
             ],
           }),
         ],
-      });
-    } catch (e) {
-      const alertEmbed = new EmbedBuilder({
-        footer: {
-          iconURL: interaction.user.avatarURL(),
-          text: "Não foi possível avisar o usuário no privado.",
-        },
-        color: Colors.Yellow,
-        timestamp: new Date(),
-      });
+      })
+      .catch(async (e) => {
+        const alertEmbed = new EmbedBuilder({
+          footer: {
+            iconURL: interaction.user.avatarURL(),
+            text: "Não foi possível avisar o usuário no privado.",
+          },
+          color: Colors.Yellow,
+          timestamp: new Date(),
+        });
 
-      await message.edit({
-        embeds: [embed, acceptEmbed, alertEmbed],
+        await message.edit({
+          embeds: [embed, acceptEmbed, alertEmbed],
+        });
+
+        project = await project.updateOne({ "meta.notified": false });
+
+        return e;
       });
-    }
 
     await interaction.followUp({
       content: "Processo concluído.",
