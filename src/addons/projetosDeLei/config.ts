@@ -1,6 +1,6 @@
 export const config = {
-  mention_user: "397530916571840512",
-  send_channel: "1061713441443827722",
+  mention_user: "740977650423824554",
+  send_channel: "961398592340377600",
   verify_channel: "1063623492366512128",
   customIds: {
     suggestNewProject: "create-project",
