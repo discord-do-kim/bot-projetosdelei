@@ -58,6 +58,9 @@ const projetoDeLeiSchema = new mongoose.Schema<ProjetoDeLei>({
       required: false,
       type: String,
     },
+    rejectReason: {
+      type: String,
+    },
   },
 });
 

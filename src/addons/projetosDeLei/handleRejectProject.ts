@@ -19,7 +19,7 @@ import { ProjetoDeLeiModel } from "../../models/ProjetoDeLei";
 import { fetchError } from "../../utils/fetchError";
 import { config } from "./config";
 import { Status } from "./enums/Status";
-import { projetoEmbed, rejectedProjetoEmbed } from "./utils";
+import { isNotifiedEmbed, projetoEmbed, rejectedProjetoEmbed } from "./utils";
 import { supportButton } from "../../utils/Buttons";
 
 export async function handleRejectProject(
@@ -123,7 +123,7 @@ export async function handleRejectProject(
             "meta.rejectReason": rejectReason,
             "meta.handledAt": new Date(),
           },
-          { returnDocument: "after" }
+          { new: true }
         );
 
         if (rejectedProjeto === null) {
@@ -140,7 +140,10 @@ export async function handleRejectProject(
         const rejectedEmbed = await rejectedProjetoEmbed(rejectedProjeto);
         const embed = await projetoEmbed(rejectedProjeto);
 
-        message = await message.edit({ embeds: [rejectedEmbed, embed] });
+        message = await message.edit({
+          embeds: [embed, rejectedEmbed],
+          components: [],
+        });
 
         await owner
           .send({
@@ -185,7 +188,12 @@ export async function handleRejectProject(
             rejectedProjeto.meta.ownerNotified = false;
           });
 
-        await rejectedProjeto.save();
+        const projeto = await rejectedProjeto.save();
+
+        message = await message.edit({
+          embeds: [rejectedEmbed, embed, isNotifiedEmbed(projeto)],
+          components: [],
+        });
 
         await modal.followUp({
           content: "Processo concluído.",
@@ -201,8 +209,7 @@ export async function handleRejectProject(
         await fetchError(e);
 
         await modal.followUp({
-          content:
-            "Um erro aconteceu, não foi possível completar a ação. Tente novamente.",
+          content: e as string,
           ephemeral: true,
         });
       }

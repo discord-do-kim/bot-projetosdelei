@@ -42,7 +42,7 @@ export async function projetoEmbed(projeto: Projeto): Promise<EmbedBuilder> {
 
 export function isNotifiedEmbed(projeto: Projeto): EmbedBuilder {
   const isNotified = projeto.meta.ownerNotified;
-  if (!isNotified) {
+  if (isNotified) {
     return new EmbedBuilder({
       footer: { text: "O usuário foi notificado no privado." },
       color: Colors.Yellow,
@@ -138,7 +138,7 @@ export async function rejectedProjetoEmbed(
       text: `Rejeitado por ${mod.tag}`,
     },
     color: Colors.Red,
-    timestamp: projeto.meta.rejectReason,
+    timestamp: projeto.meta.handledAt?.toString(),
   });
 
   return rejectEmbed;
