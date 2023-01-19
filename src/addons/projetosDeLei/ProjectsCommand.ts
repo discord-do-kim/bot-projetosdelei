@@ -130,23 +130,33 @@ export class ProjectsCommand extends CommandPattern {
         const acceptedEmbed = await acceptedProjetoEmbed(projeto);
 
         const button = new ActionRowBuilder<ButtonBuilder>();
+        const thread = await client.channels
+          .fetch(projeto.meta.threadId ?? "")
+          .catch((e) => null);
 
-        if (projeto.meta.threadId !== undefined) {
-          const thread = await client.channels.fetch(projeto.meta.threadId);
-          if (thread !== null) {
-            button.addComponents(
-              new ButtonBuilder({
-                label: "Ver andamento do projeto.",
-                style: ButtonStyle.Link,
-                url: thread.url,
-              })
-            );
-          }
+        if (thread !== null) {
+          button.addComponents(
+            new ButtonBuilder({
+              label: "Ver andamento do projeto.",
+              style: ButtonStyle.Link,
+              url: thread.url,
+            })
+          );
         }
 
         await interaction.followUp({
           embeds: [contentEmbed, acceptedEmbed, isNotifiedEmbed(projeto)],
+          components: button.components.length > 0 ? [button] : [],
         });
+
+        if (thread === null) {
+          await interaction.followUp({
+            content:
+              "Não foi possível encontrar a thread do projeto de lei. Verifique se alguma coisa está errada.",
+            ephemeral: true,
+          });
+        }
+
         break;
       }
       default:

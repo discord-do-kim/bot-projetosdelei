@@ -207,11 +207,17 @@ export async function handleRejectProject(
         await session.endSession();
 
         await fetchError(e);
-
-        await modal.followUp({
-          content: e as string,
-          ephemeral: true,
-        });
+        if (e instanceof Error) {
+          await modal.followUp({
+            content: e.message,
+            ephemeral: true,
+          });
+        } else {
+          await modal.followUp({
+            content: "Alguma coisa deu errado.",
+            ephemeral: true,
+          });
+        }
       }
 
       collector.stop();

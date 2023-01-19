@@ -36,7 +36,7 @@ export async function projetoEmbed(projeto: Projeto): Promise<EmbedBuilder> {
     description: projeto.content,
     color: StatusColors[projeto.meta.status],
     footer: { text: projeto._id.toString() },
-    timestamp: new Date().toString(),
+    timestamp: projeto.createdAt.toString(),
   });
 }
 
@@ -114,7 +114,7 @@ export async function acceptedProjetoEmbed(
       iconURL: mod.avatarURL() ?? undefined,
       text: `Aprovado por @${owner.username}`,
     },
-    timestamp: projeto.meta.handledAt,
+    timestamp: projeto.meta.handledAt?.toString(),
     color: Colors.Green,
   });
 

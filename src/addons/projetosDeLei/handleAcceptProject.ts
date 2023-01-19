@@ -62,6 +62,12 @@ export async function handleAcceptProject(
       ephemeral: true,
     });
 
+    const embed = new EmbedBuilder(
+      originalMessage.embeds[0]?.toJSON()
+    ).setColor(Colors.Yellow);
+
+    await originalMessage.edit({ embeds: [embed], components: [] });
+
     return;
   }
 
