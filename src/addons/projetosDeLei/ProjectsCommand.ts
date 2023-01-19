@@ -6,6 +6,7 @@ import {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
+  Colors,
 } from "discord.js";
 import { CommandPattern } from "../../commands/CommandPattern";
 import { ProjetoDeLeiModel } from "../../models/ProjetoDeLei";
@@ -18,6 +19,7 @@ import {
 } from "./utils";
 import { Status } from "./enums/Status";
 import { client } from "../../client";
+import { Types } from "mongoose";
 
 export class ProjectsCommand extends CommandPattern {
   command = new SlashCommandBuilder()
@@ -86,19 +88,19 @@ export class ProjectsCommand extends CommandPattern {
   async searchById(interaction: ChatInputCommandInteraction): Promise<void> {
     const id = interaction.options.getString("value");
 
-    if (id === null) {
+    if (id === null || !Types.ObjectId.isValid(id)) {
       await interaction.followUp({
-        content: "O id enviado tem valor de nulo.",
+        content: "O ID enviado não é um ID válido.",
         ephemeral: true,
       });
       return;
     }
 
-    const projeto = await ProjetoDeLeiModel.findById(id);
+    const projeto = await ProjetoDeLeiModel.findById(id).exec();
 
     if (projeto === null) {
       await interaction.followUp(
-        `Não foi possível encontrar o projeto o id ${id}.`
+        `Não foi possível encontrar o projeto o id "${id}".`
       );
 
       return;
@@ -120,7 +122,7 @@ export class ProjectsCommand extends CommandPattern {
       case "rejected": {
         const rejectedEmbed = await rejectedProjetoEmbed(projeto);
         await interaction.followUp({
-          embeds: [contentEmbed, isNotifiedEmbed(projeto), rejectedEmbed],
+          embeds: [contentEmbed, rejectedEmbed, isNotifiedEmbed(projeto)],
         });
         break;
       }
@@ -143,7 +145,7 @@ export class ProjectsCommand extends CommandPattern {
         }
 
         await interaction.followUp({
-          embeds: [contentEmbed, isNotifiedEmbed(projeto), acceptedEmbed],
+          embeds: [contentEmbed, acceptedEmbed, isNotifiedEmbed(projeto)],
         });
         break;
       }
@@ -173,22 +175,33 @@ export class ProjectsCommand extends CommandPattern {
     if (mod !== null) query = query.find({ "meta.moderatorId": mod.id });
     if (status !== null) query = query.find({ "meta.status": status });
 
-    const projetosDeLei = await query;
+    const projetos = await query;
 
     const embed = new EmbedBuilder({
-      title: "Últimos 25 projetos de lei sugeridos:",
+      title: "Listando projetos encontrados:",
       description: `
-      ${owner !== null ? `Criados por: @${owner.username}` : ""}
-      ${mod !== null ? `Tratados por: @${mod.username}` : ""}
-      ${status !== null ? `Status Atual: ${status}` : ""}\n
+      ${owner !== null ? `Dono: @${owner.username}.` : ""}
+      ${mod !== null ? `Fiscalizador: @${mod.username}.` : ""}
+      ${status !== null ? `Status: ${Status[status as "accepted"]}.` : ""}\n
       `,
-      footer: {
-        text: "Busca realizada por: @" + interaction.user.username,
+      author: {
+        name: interaction.user.username,
+        iconURL: interaction.user.avatarURL() ?? undefined,
       },
+      footer: {
+        text: `Eu encontrei ${projetos.length} projetos.`,
+      },
+      color: Colors.Purple,
       timestamp: new Date(),
     });
 
-    projetosDeLei.forEach((projeto) => {
+    if (projetos.length > 25) {
+      embed.setFooter({
+        text: `Eu encontrei ao todo ${projetos.length} projetos, mas só consigo exibir os últimos 25.`,
+      });
+    }
+
+    projetos.forEach((projeto) => {
       const date = `${projeto.createdAt.toLocaleString("pt-BR", {
         dateStyle: "medium",
         timeStyle: "medium",

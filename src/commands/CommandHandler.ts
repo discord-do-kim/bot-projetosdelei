@@ -37,13 +37,13 @@ class CommandHandler {
           content: `${e as string}`,
         })
         .catch(
-          async (e) =>
+          async () =>
             await interaction.followUp({
               ephemeral: true,
               content: `${e as string}`,
             })
         )
-        .catch(async (e) => {
+        .catch(async () => {
           await fetchError(e);
         });
     }

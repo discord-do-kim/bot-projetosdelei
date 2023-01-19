@@ -42,7 +42,7 @@ export abstract class CommandPattern {
 
   get name(): string {
     return this.command.name;
-  }
+}
 
   get description(): string {
     if (this.command instanceof ContextMenuCommandBuilder) {

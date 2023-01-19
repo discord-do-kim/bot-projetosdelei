@@ -124,9 +124,10 @@ export async function acceptedProjetoEmbed(
 export async function rejectedProjetoEmbed(
   projeto: Projeto
 ): Promise<EmbedBuilder> {
-  const { status, moderatorId } = projeto.meta;
+  const status = projeto.meta.status;
+  const moderatorId = projeto.meta.moderatorId;
   if (status !== "rejected") throw new Error("O projeto não está rejeitado.");
-  if (moderatorId === undefined) throw new Error("O projeto está mal formado.");
+  if (moderatorId === undefined) throw new Error("O projeto está malformado.");
 
   const mod = await client.users.fetch(moderatorId);
 

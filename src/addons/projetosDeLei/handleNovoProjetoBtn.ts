@@ -113,6 +113,7 @@ export async function handleNovoProjetoBtn(
       await interaction.followUp({
         content:
           "Não foi possível enviar o seu projeto de lei. Por favor, tente novamente.",
+        ephemeral: true,
       });
     } finally {
       await session.endSession();
