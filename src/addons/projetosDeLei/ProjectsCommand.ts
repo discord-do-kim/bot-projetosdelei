@@ -199,7 +199,7 @@ export class ProjectsCommand extends CommandPattern {
         iconURL: interaction.user.avatarURL() ?? undefined,
       },
       footer: {
-        text: `Eu encontrei ${projetos.length} projetos.`,
+        text: `Foram encontrados ao todo ${projetos.length} projetos.`,
       },
       color: Colors.Purple,
       timestamp: new Date(),
@@ -207,7 +207,7 @@ export class ProjectsCommand extends CommandPattern {
 
     if (projetos.length > 25) {
       embed.setFooter({
-        text: `Eu encontrei ao todo ${projetos.length} projetos, mas só consigo exibir os últimos 25.`,
+        text: `Foram encontrados ao todo ${projetos.length} projetos, mas só podem ser exibidos os últimos 25.`,
       });
     }
 

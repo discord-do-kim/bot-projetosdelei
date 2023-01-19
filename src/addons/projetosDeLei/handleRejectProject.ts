@@ -191,7 +191,7 @@ export async function handleRejectProject(
         const projeto = await rejectedProjeto.save();
 
         message = await message.edit({
-          embeds: [rejectedEmbed, embed, isNotifiedEmbed(projeto)],
+          embeds: [embed, rejectedEmbed, isNotifiedEmbed(projeto)],
           components: [],
         });
 

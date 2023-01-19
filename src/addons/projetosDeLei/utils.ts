@@ -106,13 +106,12 @@ export async function acceptedProjetoEmbed(
     throw new Error("O projeto está malformado.");
   }
 
-  const owner = await client.users.fetch(projeto.owner);
   const mod = await client.users.fetch(moderatorId);
 
   const acceptEmbed = new EmbedBuilder({
     footer: {
       iconURL: mod.avatarURL() ?? undefined,
-      text: `Aprovado por @${owner.username}`,
+      text: `Aprovado por @${mod.username}`,
     },
     timestamp: projeto.meta.handledAt?.toString(),
     color: Colors.Green,
