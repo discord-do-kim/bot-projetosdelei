@@ -11,49 +11,71 @@ import {
   InteractionType,
   InteractionCollector,
   ModalSubmitInteraction,
+  Colors,
 } from "discord.js";
 import { Error } from "mongoose";
 import { client } from "../../client";
 import { ProjetoDeLeiModel } from "../../models/ProjetoDeLei";
 import { fetchError } from "../../utils/fetchError";
-import { Buttons } from "../../utils/Buttons";
 import { config } from "./config";
-import { updateOutdatedEmbed } from "./updateOutdatedEmbed";
-import { Components } from "./Components";
+import { Status } from "./enums/Status";
+import { projetoEmbed, rejectedProjetoEmbed } from "./utils";
+import { supportButton } from "../../utils/Buttons";
 
-export async function handleRejectProject(interaction: Interaction) {
+export async function handleRejectProject(
+  interaction: Interaction
+): Promise<void> {
   if (!interaction.isButton()) return;
   const customId = interaction.customId;
   const rejectId = config.customIds.rejectButton;
   if (customId !== rejectId) return;
 
-  const message = await interaction.message.fetch();
-  const embed = new EmbedBuilder(message.embeds[0]);
+  let message = await interaction.message.fetch();
+  const projetoId = message.embeds[0].footer?.text;
+
+  if (projetoId === undefined) {
+    throw new Error(
+      "Não foi possível encontrar o ID do projeto nessa mensagem."
+    );
+  }
+
+  const projeto = await ProjetoDeLeiModel.findById(projetoId);
+
+  if (projeto === null) {
+    throw new Error(
+      `Não foi possível encontrar o projeto com o ID ${projetoId}.`
+    );
+  }
+
+  const status = projeto.meta.status;
+
+  if (status !== "pending") {
+    const status = Status[projeto.meta.status];
+
+    await interaction.reply({
+      content: `Esse já foi tratado e contém o status de ${status}.`,
+      ephemeral: true,
+    });
+
+    await interaction.followUp({
+      content: `Para ver mais detalhes, digite "/projetos id ${projetoId}".`,
+      ephemeral: true,
+    });
+
+    const embed = new EmbedBuilder(message.embeds[0].toJSON()).setColor(
+      Colors.Yellow
+    );
+
+    await message.edit({
+      embeds: [embed],
+      components: [],
+    });
+
+    return;
+  }
 
   try {
-    const projectId = embed.toJSON().footer?.text;
-
-    const project = await ProjetoDeLeiModel.findById(projectId);
-
-    if (!project) {
-      await interaction.reply({
-        content: "Esse projeto não existe na base de dados.",
-      });
-
-      return;
-    }
-
-    const userOwner = await client.users.fetch(project.userId);
-
-    if (project.meta.status !== "pending") {
-      await interaction.reply({
-        content: `Esse já foi tratado e contém o status de ${project.meta.status}.`,
-        ephemeral: true,
-      });
-
-      await updateOutdatedEmbed(interaction, projectId);
-      return;
-    }
+    const owner = await client.users.fetch(projeto.owner);
 
     const rejectReason = new ActionRowBuilder<TextInputBuilder>({
       components: [
@@ -83,6 +105,8 @@ export async function handleRejectProject(interaction: Interaction) {
     });
 
     collector.on("collect", async (modal: ModalSubmitInteraction) => {
+      const session = await ProjetoDeLeiModel.startSession();
+      session.startTransaction();
       try {
         if (!modal.isModalSubmit()) return;
         await modal.deferReply({ ephemeral: true });
@@ -91,10 +115,10 @@ export async function handleRejectProject(interaction: Interaction) {
           config.customIds.rejectReason
         );
 
-        const rejectedProject = await ProjetoDeLeiModel.findByIdAndUpdate(
-          { _id: projectId },
+        const rejectedProjeto = await ProjetoDeLeiModel.findByIdAndUpdate(
+          { _id: projetoId },
           {
-            "meta.moderador": interaction.user.id,
+            "meta.moderatorId": interaction.user.id,
             "meta.status": "rejected",
             "meta.rejectReason": rejectReason,
             "meta.handledAt": new Date(),
@@ -102,56 +126,83 @@ export async function handleRejectProject(interaction: Interaction) {
           { returnDocument: "after" }
         );
 
-        const responseComponents = await Components.rejectedComponents(
-          rejectedProject
-        );
+        if (rejectedProjeto === null) {
+          await session.abortTransaction();
+          await session.endSession();
 
-        await message.edit(responseComponents);
+          await modal.editReply(
+            "Alguma coisa deu errado na atualização do projeto. Tente novamente."
+          );
 
-        try {
-          await userOwner.send({
-            content: `Seu projeto "${project.title}" foi rejeitado.`,
+          return;
+        }
+
+        const rejectedEmbed = await rejectedProjetoEmbed(rejectedProjeto);
+        const embed = await projetoEmbed(rejectedProjeto);
+
+        message = await message.edit({ embeds: [rejectedEmbed, embed] });
+
+        await owner
+          .send({
+            content: `Seu projeto "${rejectedProjeto.title}" foi rejeitado.`,
             embeds: [
               new EmbedBuilder({
-                ...embed.toJSON(),
-                footer: undefined,
-                author: undefined,
-              }),
-              ...responseComponents.embeds.splice(0, 2),
-            ],
-          });
-
-          rejectedProject.updateOne({ "meta.notified": true });
-
-          const buttons = new ActionRowBuilder<ButtonBuilder>({
-            components: [
-              new ButtonBuilder({
-                style: ButtonStyle.Link,
-                label: "Faq Projetos de Lei",
-                url: interaction.channel.url,
+                title: rejectedProjeto.title,
+                description: rejectedProjeto.content,
+                timestamp: rejectedProjeto.meta.handledAt?.toString(),
+                footer: {
+                  text: rejectedProjeto._id.toString(),
+                },
               }),
             ],
+          })
+          .then(async (message) => {
+            const faq = await client.channels.fetch(config.send_channel);
+
+            const buttons = new ActionRowBuilder<ButtonBuilder>({
+              components: [supportButton],
+            });
+
+            if (faq !== null) {
+              buttons.addComponents(
+                new ButtonBuilder({
+                  style: ButtonStyle.Link,
+                  label: "Faq Projetos de Lei",
+                  url: faq.url,
+                })
+              );
+            }
+
+            await message.reply({
+              content:
+                "Se precisar de mais informações, clique nos botões abaixo:",
+              components: [buttons],
+            });
+
+            rejectedProjeto.meta.ownerNotified = true;
+          })
+          .catch((e) => {
+            rejectedProjeto.meta.ownerNotified = false;
           });
 
-          await userOwner.send({
-            content:
-              "Se precisar de mais informações, clique nos botões abaixo:",
-            components: [buttons, Buttons.support()],
-          });
-        } catch (e) {
-          message.edit(responseComponents);
-        }
+        await rejectedProjeto.save();
 
         await modal.followUp({
           content: "Processo concluído.",
           ephemeral: true,
         });
+
+        await session.commitTransaction();
+        await session.endSession();
       } catch (e) {
+        await session.abortTransaction();
+        await session.endSession();
+
         await fetchError(e);
+
         await modal.followUp({
           content:
-            "Um erro aconteceu, não foi possível completar a ação:\n" +
-            e.toString(),
+            "Um erro aconteceu, não foi possível completar a ação. Tente novamente.",
           ephemeral: true,
         });
       }
@@ -159,15 +210,9 @@ export async function handleRejectProject(interaction: Interaction) {
       collector.stop();
     });
   } catch (e) {
-    if (e instanceof Error.CastError) {
-      await interaction.reply({
-        content: `O id "${embed.data.footer.text}" é inválido.`,
-        ephemeral: true,
-      });
-      return;
-    }
+    await fetchError(e);
     await interaction.followUp({
-      content: `Não foi possível aceitar essa sugestão. Um erro aconteceu: ${e.toString()}. `,
+      content: `Não foi possível aceitar essa sugestão. Um erro aconteceu.`,
       ephemeral: true,
     });
   }

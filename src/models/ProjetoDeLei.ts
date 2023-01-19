@@ -1,22 +1,22 @@
 import mongoose from "mongoose";
 
 export interface ProjetoDeLei {
-  userId: string;
+  owner: string;
   title: string;
   content: string;
+  createdAt: Date;
   meta: {
-    moderator?: string;
-    createdAt: Date;
+    moderatorId?: string;
     status: "pending" | "accepted" | "rejected";
     rejectReason?: string;
     handledAt?: Date;
-    notified: boolean;
-    thread?: string;
+    ownerNotified: boolean;
+    threadId?: string;
   };
 }
 
 const projetoDeLeiSchema = new mongoose.Schema<ProjetoDeLei>({
-  userId: {
+  owner: {
     required: true,
     type: String,
   },
@@ -31,12 +31,12 @@ const projetoDeLeiSchema = new mongoose.Schema<ProjetoDeLei>({
     type: String,
     maxlength: 4000,
   },
+  createdAt: {
+    type: Date,
+    default: Date.now,
+  },
   meta: {
-    createdAt: {
-      type: Date,
-      default: Date.now,
-    },
-    moderator: {
+    moderatorId: {
       required: false,
       type: String,
       maxlength: 4000,
@@ -50,11 +50,11 @@ const projetoDeLeiSchema = new mongoose.Schema<ProjetoDeLei>({
       required: false,
       type: Date,
     },
-    notified: {
+    ownerNotified: {
       type: Boolean,
       default: false,
     },
-    thread: {
+    threadId: {
       required: false,
       type: String,
     },

@@ -5,73 +5,188 @@ import {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
+  ThreadAutoArchiveDuration,
+  ChannelType,
+  Message,
 } from "discord.js";
-import { client } from "../../client";
 import { ProjetoDeLeiModel } from "../../models/ProjetoDeLei";
-import { fetchError } from "../../utils/fetchError";
 import { Status } from "./enums/Status";
 import { config } from "./config";
-import { openThread } from "./openThread";
-import { updateOutdatedEmbed } from "./updateOutdatedEmbed";
-import { Components } from "./Components";
+import { acceptedProjetoEmbed, isNotifiedEmbed, projetoEmbed } from "./utils";
+import { isTextChannel } from "../../utils/isTextChannel";
+import { client } from "../../client";
 
-export async function handleAcceptProject(interaction: Interaction) {
+export async function handleAcceptProject(
+  interaction: Interaction
+): Promise<void> {
   if (!interaction.isButton()) return;
-
   const customId = interaction.customId;
   const aprovedButtonId = config.customIds.aprovedButton;
   if (customId !== aprovedButtonId) return;
   await interaction.deferReply({ ephemeral: true });
 
-  const message = await interaction.message.fetch();
-  const embed = new EmbedBuilder(message.embeds[0]);
-  const projectId = embed.toJSON().footer?.text;
+  const originalMessage = await interaction.message.fetch();
 
-  try {
-    let project = await ProjetoDeLeiModel.findById(projectId).catch(
-      async (e) => {
-        await interaction.followUp({
-          content: "Não foi possível atualizar o banco de dados.",
-          ephemeral: true,
-        });
-        throw e;
-      }
+  const projetoId = originalMessage.embeds[0].footer?.text;
+
+  if (projetoId === undefined) {
+    throw new Error(
+      "Não foi possível encontrar o ID do projeto nessa mensagem."
     );
+  }
 
-    if (project.meta.status !== "pending") {
-      await updateOutdatedEmbed(interaction, projectId);
+  let projeto = await ProjetoDeLeiModel.findById(projetoId);
+
+  await interaction.editReply({
+    content: "Projeto encontrado.",
+  });
+
+  if (projeto === null) {
+    throw new Error(
+      `Não foi possível encontrar o projeto com o ID ${projetoId}.`
+    );
+  }
+
+  const status = projeto.meta.status;
+
+  if (status !== "pending") {
+    const status = Status[projeto.meta.status];
+
+    await interaction.followUp({
+      content: `Esse já foi tratado e contém o status de ${status}.`,
+      ephemeral: true,
+    });
+
+    await interaction.followUp({
+      content: `Para ver mais detalhes, digite "/projetos id ${projetoId}".`,
+      ephemeral: true,
+    });
+
+    return;
+  }
+
+  const session = await ProjetoDeLeiModel.startSession();
+  session.startTransaction();
+  try {
+    projeto.meta = {
+      moderatorId: interaction.user.id,
+      status: "accepted",
+      handledAt: new Date(),
+      ownerNotified: false,
+    };
+
+    projeto = await projeto.save();
+
+    await interaction.editReply({
+      content: "Projeto atualizado na base de dados.",
+    });
+
+    if (projeto === null) {
+      await session.abortTransaction();
+      await session.endSession();
+      throw new Error(
+        `Não foi possível fazer a atualização do projeto na base de dados. Tente novamente.`
+      );
+    }
+
+    const channel = await client.channels.fetch(config.send_channel);
+
+    if (channel === null) {
+      await session.abortTransaction();
+      await session.endSession();
+
       await interaction.followUp({
-        content: `Esse já foi tratado e contém o status de ${
-          Status[project.meta.status]
-        }`,
+        content: "Não foi possível encontrar o canal para abrir a thread.",
         ephemeral: true,
       });
 
       return;
     }
 
-    project = await ProjetoDeLeiModel.findByIdAndUpdate(
-      { _id: projectId },
-      {
-        "meta.moderator": interaction.user.id,
-        "meta.status": "accepted",
-        "meta.handledAt": new Date(),
-      },
-      { returnDocument: "after" }
-    );
+    if (!isTextChannel(channel)) {
+      await session.abortTransaction();
+      await session.endSession();
 
-    const user = await client.users.fetch(project.userId);
+      await interaction.followUp({
+        content: "Não é possível abrir uma thread nesse canal.",
+        ephemeral: true,
+      });
 
-    const thread = await openThread(projectId);
+      return;
+    }
 
-    const responseComponents = await Components.acceptedComponents(project);
-
-    embed.setColor(Colors.Green);
-
-    await message.edit({
-      embeds: responseComponents.embeds.splice(0, 2),
-      components: responseComponents.components,
+    const thread = await channel.threads.create({
+      name: projeto.title,
+      reason: "Novo projeto de lei",
+      autoArchiveDuration: ThreadAutoArchiveDuration.OneWeek,
+      invitable: false as never,
+      type: ChannelType.PrivateThread as never,
     });
+
+    const threadMessage = await thread
+      .send({
+        content: `Projeto de lei sugerido por: <@${projeto.owner}>.`,
+        embeds: [
+          new EmbedBuilder({
+            title: projeto.title,
+            description: projeto.content,
+          }),
+        ],
+      })
+      .catch(async (e) => {
+        await interaction.editReply(
+          "Não foi possível enviar o projeto de lei na thread criada. A thread será deletada."
+        );
+        await thread.delete();
+        throw e;
+      });
+
+    await thread.members.add(interaction.user.id).catch();
+
+    await threadMessage
+      .reply({
+        content: `Responsável pela fiscalização do canal: <@${interaction.user.id}>`,
+      })
+      .then(async (e: Message) => await e.delete())
+      .catch();
+
+    await threadMessage
+      .reply({
+        content: `Projeto de lei sugerido para você, <@${config.mention_user}>!`,
+      })
+      .catch(async (e) => {
+        await interaction.editReply(
+          `Não foi possível mencionar o <@${config.mention_user}>, por favor, verifique.`
+        );
+      });
+
+    projeto.meta.threadId = thread.id;
+
+    projeto = await projeto.save();
+
+    await interaction.editReply({
+      content: "Projeto enviado com sucesso!",
+    });
+
+    const acceptEmbed = await acceptedProjetoEmbed(projeto);
+    const embed = await projetoEmbed(projeto);
+
+    const openProjetoButton = new ButtonBuilder({
+      url: thread.url,
+      label: "Ver projeto de lei enviado.",
+      style: ButtonStyle.Link,
+    });
+
+    const newMessage = await originalMessage.edit({
+      embeds: [embed, acceptEmbed],
+      components: [
+        new ActionRowBuilder<ButtonBuilder>({
+          components: [openProjetoButton],
+        }),
+      ],
+    });
+
+    const user = interaction.user;
 
     await user
       .send({
@@ -96,23 +211,42 @@ export async function handleAcceptProject(interaction: Interaction) {
           }),
         ],
       })
-      .catch(async (e) => {
-        await message.edit(await Components.acceptedComponents(project));
-
-        project = await project.updateOne({ "meta.notified": false });
-
-        return e;
+      .then(() => {
+        if (projeto === null) return;
+        projeto.meta.ownerNotified = true;
+      })
+      .catch(() => {
+        if (projeto === null) return;
+        projeto.meta.ownerNotified = false;
       });
+
+    projeto = await projeto.save();
+
+    if (projeto === null) {
+      throw new Error(
+        "O projeto foi aceito, mas não tenho certeza se o dono foi notificado."
+      );
+    }
+
+    const notifiedEmbed = isNotifiedEmbed(projeto);
+
+    await newMessage.edit({
+      embeds: [embed, acceptEmbed, notifiedEmbed],
+    });
 
     await interaction.followUp({
       content: "Processo concluído.",
       ephemeral: true,
     });
+
+    await session.commitTransaction();
+    await session.endSession();
   } catch (e) {
-    await fetchError(e);
-    await interaction.followUp({
-      content: `Não foi possível aceitar essa sugestão. Um erro aconteceu: ${e.toString()}. `,
-      ephemeral: true,
+    await session.abortTransaction();
+    await session.endSession();
+    await interaction.editReply({
+      content: "Um erro não esperado aconteceu. O processo foi abortado.",
+      embeds: [new EmbedBuilder({ description: e as string })],
     });
   }
 }

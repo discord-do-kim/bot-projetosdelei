@@ -3,10 +3,21 @@ import {
   Interaction,
   ChatInputCommandInteraction,
   EmbedBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
 } from "discord.js";
 import { CommandPattern } from "../../commands/CommandPattern";
 import { ProjetoDeLeiModel } from "../../models/ProjetoDeLei";
-import { Components } from "./Components";
+import {
+  acceptedProjetoEmbed,
+  handleSuggestionButtons,
+  isNotifiedEmbed,
+  projetoEmbed,
+  rejectedProjetoEmbed,
+} from "./utils";
+import { Status } from "./enums/Status";
+import { client } from "../../client";
 
 export class ProjectsCommand extends CommandPattern {
   command = new SlashCommandBuilder()
@@ -28,8 +39,8 @@ export class ProjectsCommand extends CommandPattern {
         )
         .addUserOption((option) =>
           option
-            .setName("user")
-            .setDescription("filtrar por usuário que enviou")
+            .setName("owner")
+            .setDescription("filtrar pelo dono do projeto.")
         )
         .addUserOption((option) =>
           option
@@ -49,7 +60,7 @@ export class ProjectsCommand extends CommandPattern {
         )
     );
 
-  async execute(interaction: Interaction) {
+  async execute(interaction: Interaction): Promise<void> {
     if (!interaction.isChatInputCommand()) return;
     const command = interaction.options.getSubcommand(true);
     await interaction.deferReply();
@@ -72,42 +83,104 @@ export class ProjectsCommand extends CommandPattern {
     }
   }
 
-  async searchById(interaction: ChatInputCommandInteraction) {
-    try {
-      const id = interaction.options.getString("id");
+  async searchById(interaction: ChatInputCommandInteraction): Promise<void> {
+    const id = interaction.options.getString("value");
 
-      const projeto = await ProjetoDeLeiModel.findById(id);
+    if (id === null) {
+      await interaction.followUp({
+        content: "O id enviado tem valor de nulo.",
+        ephemeral: true,
+      });
+      return;
+    }
 
-      const response = await Components.handleProjectByStatus(projeto);
+    const projeto = await ProjetoDeLeiModel.findById(id);
 
-      await interaction.followUp(response);
-    } catch (e) {
-      interaction.followUp({ content: e.toString(), ephemeral: true });
+    if (projeto === null) {
+      await interaction.followUp(
+        `Não foi possível encontrar o projeto o id ${id}.`
+      );
+
+      return;
+    }
+
+    const contentEmbed = await projetoEmbed(projeto);
+
+    const status = projeto.meta.status;
+
+    switch (status) {
+      case "pending": {
+        const components = handleSuggestionButtons();
+        await interaction.followUp({
+          embeds: [contentEmbed],
+          components: [components],
+        });
+        break;
+      }
+      case "rejected": {
+        const rejectedEmbed = await rejectedProjetoEmbed(projeto);
+        await interaction.followUp({
+          embeds: [contentEmbed, isNotifiedEmbed(projeto), rejectedEmbed],
+        });
+        break;
+      }
+      case "accepted": {
+        const acceptedEmbed = await acceptedProjetoEmbed(projeto);
+
+        const button = new ActionRowBuilder<ButtonBuilder>();
+
+        if (projeto.meta.threadId !== undefined) {
+          const thread = await client.channels.fetch(projeto.meta.threadId);
+          if (thread !== null) {
+            button.addComponents(
+              new ButtonBuilder({
+                label: "Ver andamento do projeto.",
+                style: ButtonStyle.Link,
+                url: thread.url,
+              })
+            );
+          }
+        }
+
+        await interaction.followUp({
+          embeds: [contentEmbed, isNotifiedEmbed(projeto), acceptedEmbed],
+        });
+        break;
+      }
+      default:
+        await interaction.followUp({
+          content:
+            "Eu encontrei o projeto, mas não consegui construir os embeds.",
+          ephemeral: true,
+        });
+        break;
     }
   }
 
-  async searchByParams(interaction: ChatInputCommandInteraction) {
+  async searchByParams(
+    interaction: ChatInputCommandInteraction
+  ): Promise<void> {
     const status = interaction.options.getString("status", false);
-    let user = interaction.options.getUser("user", false);
+    let owner = interaction.options.getUser("owner", false);
     let mod = interaction.options.getUser("mod", false);
 
-    if (user) user = await user.fetch();
-    if (mod) mod = await mod.fetch();
+    if (owner !== null) owner = await owner.fetch();
+    if (mod !== null) mod = await mod.fetch();
 
-    let query = ProjetoDeLeiModel.find();
+    let query = ProjetoDeLeiModel.find().sort({ createdAt: -1 });
 
-    if (user) query = query.find({ userId: user.id });
-    if (mod) query = query.find({ "meta.moderator": mod.id });
-    if (status) query = query.find({ "meta.status": status });
+    if (owner !== null) query = query.find({ owner: owner.id });
+    if (mod !== null) query = query.find({ "meta.moderatorId": mod.id });
+    if (status !== null) query = query.find({ "meta.status": status });
 
     const projetosDeLei = await query;
 
     const embed = new EmbedBuilder({
-      title: "Mostrando até 25 resultados de projetos de lei",
+      title: "Últimos 25 projetos de lei sugeridos:",
       description: `
-      ${user !== null ? `Criados por: @${user.username}` : ""}
+      ${owner !== null ? `Criados por: @${owner.username}` : ""}
       ${mod !== null ? `Tratados por: @${mod.username}` : ""}
-      ${status !== null ? `Status Atual: ${status}` : ""}
+      ${status !== null ? `Status Atual: ${status}` : ""}\n
       `,
       footer: {
         text: "Busca realizada por: @" + interaction.user.username,
@@ -116,20 +189,17 @@ export class ProjectsCommand extends CommandPattern {
     });
 
     projetosDeLei.forEach((projeto) => {
-      const date =
-        "Criado: " +
-        projeto.meta.createdAt.toLocaleString("pt-BR", {
-          dateStyle: "medium",
-          timeStyle: "medium",
-        });
+      const date = `${projeto.createdAt.toLocaleString("pt-BR", {
+        dateStyle: "medium",
+        timeStyle: "medium",
+      })}`;
 
-      const value = `
-**id:** ${projeto._id.toString()}
-**Criado:** ${date}
-**Status:** ${projeto.meta.status}\n\n`;
+      let value = projeto.title;
+      value += `\nCriado em ${date}.`;
+      value += `\nStatus de ${Status[projeto.meta.status]}.\n\n\n`;
 
       embed.addFields({
-        name: projeto.title,
+        name: projeto._id.toString(),
         value,
       });
     });

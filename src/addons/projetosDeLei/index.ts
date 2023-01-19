@@ -5,17 +5,17 @@ import { ProjectsCommand } from "./ProjectsCommand";
 import { sendEmbeds } from "./sendEmbeds";
 import { interactionEventHandler } from "../../handlers/InteractionEventHandler";
 import { InteractionType } from "discord.js";
-import { createNewProjetoDeLei } from "./createNewProjetoDeLei";
+import { handleNovoProjetoBtn } from "./handleNovoProjetoBtn";
 import { handleAcceptProject } from "./handleAcceptProject";
 import { handleRejectProject } from "./handleRejectProject";
 
-export default () => {
+export default (): void => {
   commandHandler.register(new ProjectsCommand());
   clientReadyHandler.register(randomUUID(), sendEmbeds);
 
   interactionEventHandler.register(
     InteractionType.MessageComponent,
-    createNewProjetoDeLei
+    handleNovoProjetoBtn
   );
 
   interactionEventHandler.register(

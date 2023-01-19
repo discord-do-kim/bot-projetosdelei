@@ -1,6 +1,10 @@
-import { Interaction, InteractionType } from "discord.js";
+import {
+  ContextMenuCommandBuilder,
+  Interaction,
+  InteractionType,
+} from "discord.js";
 import { fetchError } from "../utils/fetchError";
-import { CommandPattern } from "./CommandPattern";
+import { CommandPattern, Slash } from "./CommandPattern";
 
 type HandlerFunction = (
   interaction: Interaction,
@@ -8,39 +12,44 @@ type HandlerFunction = (
 ) => Promise<any>;
 
 class CommandHandler {
-  private _installed = new Set<CommandPattern>();
-  private _commands = new Map<string, HandlerFunction>();
+  private readonly _installed = new Set<CommandPattern>();
+  private readonly _commands = new Map<string, HandlerFunction>();
 
-  register(command: CommandPattern) {
+  register(command: CommandPattern): void {
     this._installed.add(command);
     this._commands.set(command.name, command.execute.bind(command));
   }
 
-  async handle(interaction: Interaction, ...args: any[]) {
-    if (interaction.type !== InteractionType.ApplicationCommand) return;
-
-    const commandName = interaction.commandName;
-    const handler = this._commands.get(commandName);
+  async handle(interaction: Interaction, ...args: any[]): Promise<void> {
     try {
-      if (handler) await handler(interaction, ...args);
+      if (interaction.type !== InteractionType.ApplicationCommand) return;
+
+      const commandName = interaction.commandName;
+      const handler = this._commands.get(commandName);
+      if (handler != null) await handler(interaction, ...args);
     } catch (e) {
-      try {
-        await interaction.followUp({
+      await fetchError(e);
+      if (!interaction.isRepliable()) return;
+
+      await interaction
+        .reply({
           ephemeral: true,
-          content: "Um erro aconteceu. " + e.toString(),
+          content: `${e as string}`,
+        })
+        .catch(
+          async (e) =>
+            await interaction.followUp({
+              ephemeral: true,
+              content: `${e as string}`,
+            })
+        )
+        .catch(async (e) => {
+          await fetchError(e);
         });
-      } catch (e) {
-        await interaction
-          .reply({
-            ephemeral: true,
-            content: "Um erro aconteceu. " + e.toString(),
-          })
-          .catch(fetchError);
-      }
     }
   }
 
-  get command() {
+  get command(): Array<Slash | ContextMenuCommandBuilder> {
     return Array.from(this._installed).map((instance) => instance.command);
   }
 

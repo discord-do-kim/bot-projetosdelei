@@ -10,11 +10,13 @@ projetosDeLei();
   mongoose.set("strictQuery", true);
   await mongoose.connect(MONGO_SRV);
 
-  eventDispatcher.events.map((event) => {
-    client.on(event as string, (...args) => {
-      eventDispatcher.dispatchEvent(event, ...args);
+  eventDispatcher.events.forEach((event) => {
+    client.on(event as string, async (...args) => {
+      await eventDispatcher.dispatchEvent(event, ...args);
     });
   });
 
   await client.login(DISCORD_TOKEN);
-})();
+})().catch((e) => {
+  console.log(e);
+});

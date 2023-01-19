@@ -7,14 +7,14 @@ type Handler = (client: Client, ...args: any[]) => Promise<any>;
 class ClientReadyHandler extends EventHandler {
   readonly handlers: Map<string, Handler> = new Map();
 
-  public register(id: string, handler: Handler) {
+  public register(id: string, handler: Handler): void {
     this.handlers.set(id, handler);
   }
 
-  public async handle(client: Client, ...args: any[]) {
+  public async handle(client: Client, ...args: any[]): Promise<any> {
     await Promise.all(
-      Array.from(this.handlers.values()).map((handler) =>
-        handler(client, ...args)
+      Array.from(this.handlers.values()).map(
+        async (handler) => await handler(client, ...args)
       )
     );
 
@@ -25,5 +25,5 @@ class ClientReadyHandler extends EventHandler {
 export const clientReadyHandler = new ClientReadyHandler();
 
 clientReadyHandler.register(randomUUID(), async (client) => {
-  console.log(`Logged in ${client.user.tag}`);
+  if (client.user !== null) console.log(`Logged in ${client.user.tag}`);
 });

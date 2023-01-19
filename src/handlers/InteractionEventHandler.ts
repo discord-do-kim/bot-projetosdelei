@@ -8,10 +8,10 @@ type Handler = (interaction: Interaction, ...args: any[]) => Promise<any>;
 class InteractionEventHandler extends EventHandler {
   readonly handlers: Map<InteractionType, Set<Handler>> = new Map();
 
-  public register(eventType: InteractionType, handler: Handler) {
+  public register(eventType: InteractionType, handler: Handler): void {
     const handlers = this.handlers.get(eventType);
 
-    if (!handlers) {
+    if (handlers == null) {
       this.handlers.set(eventType, new Set([handler]));
       return;
     }
@@ -19,25 +19,35 @@ class InteractionEventHandler extends EventHandler {
     handlers.add(handler);
   }
 
-  public async handle(interaction: Interaction, ...args: any[]) {
-    const type = interaction.type;
-    const handlers = this.handlers.get(type);
-    if (handlers)
-      for (const handler of handlers) {
-        try {
+  public async handle(interaction: Interaction, ...args: any[]): Promise<void> {
+    try {
+      const type = interaction.type;
+      const handlers = this.handlers.get(type);
+
+      if (handlers != null) {
+        for (const handler of handlers) {
           await handler(interaction, ...args);
-        } catch (e) {
-          await fetchError(e);
-          if (interaction.isAutocomplete()) return;
-          try {
-            await interaction.reply({ ephemeral: true, content: e.toString() });
-          } catch (e) {
-            await interaction
-              .followUp({ ephemeral: true, content: e.toString() })
-              .catch();
-          }
         }
       }
+    } catch (e) {
+      if (!interaction.isRepliable()) return;
+
+      await interaction
+        .reply({
+          ephemeral: true,
+          content: `${e as string}`,
+        })
+        .catch(
+          async (e) =>
+            await interaction.followUp({
+              ephemeral: true,
+              content: `${e as string}`,
+            })
+        )
+        .catch(async (e) => {
+          await fetchError(e);
+        });
+    }
   }
 }
 

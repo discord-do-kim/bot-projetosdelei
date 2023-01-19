@@ -1,16 +1,8 @@
 import { ButtonBuilder } from "@discordjs/builders";
-import { ActionRowBuilder, ButtonStyle } from "discord.js";
+import { ButtonStyle } from "discord.js";
 
-export class Buttons {
-  public static support() {
-    return new ActionRowBuilder<ButtonBuilder>({
-      components: [
-        new ButtonBuilder({
-          style: ButtonStyle.Link,
-          label: "Suporte",
-          url: "https://discord.com/channels/739290482437259336/830071402202660874",
-        }),
-      ],
-    });
-  }
-}
+export const supportButton = new ButtonBuilder({
+  style: ButtonStyle.Link,
+  label: "Suporte",
+  url: "https://discord.com/channels/739290482437259336/830071402202660874",
+});

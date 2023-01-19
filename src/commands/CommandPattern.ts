@@ -1,12 +1,10 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import {
   ContextMenuCommandBuilder,
   Interaction,
   SlashCommandBuilder,
 } from "discord.js";
-import { client } from "../client";
 
-type Slash =
+export type Slash =
   | SlashCommandBuilder
   | Omit<
       SlashCommandBuilder,
@@ -39,26 +37,17 @@ export abstract class CommandPattern {
         ephemeral: true,
         content: "Interação não implementada.",
       });
-
-      return;
     }
   }
 
-  get name() {
+  get name(): string {
     return this.command.name;
   }
 
-  get description() {
+  get description(): string {
     if (this.command instanceof ContextMenuCommandBuilder) {
       return this.command.name;
     }
     return this.command.description;
-  }
-
-  async onwer() {
-    await client.application.fetch();
-    const user = await client.users.fetch(client.application.owner.id);
-
-    return user;
   }
 }

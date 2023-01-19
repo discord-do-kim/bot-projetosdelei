@@ -9,15 +9,19 @@ import {
 
 import { config } from "./config";
 
-export async function sendEmbeds(client: Client) {
-  const channel = await client.channels.cache.get(config.send_channel).fetch();
+export async function sendEmbeds(client: Client): Promise<void> {
+  const channel = await client.channels.fetch(config.send_channel);
+
+  if (channel === null) {
+    throw new Error("Não encontrei o canal para enviar os embeds.");
+  }
 
   if (!channel.isTextBased()) throw new Error("Channel is not text based");
 
   if (!channel.isDMBased()) await channel.bulkDelete(20);
 
   await channel.send({
-    embeds: [Embeds.rejeitadasEmbed, Embeds.repetidasEmbed, Embeds.dicasEmbed],
+    embeds: [rejeitadasEmbed, repetidasEmbed, dicasEmbed],
   });
 
   await channel.send({
@@ -35,74 +39,9 @@ export async function sendEmbeds(client: Client) {
   });
 
   await channel.send({
-    embeds: [Embeds.faqEmbed],
+    embeds: [faqEmbed],
     components: [buttons],
   });
-}
-
-class Embeds {
-  public static get rejeitadasEmbed() {
-    return new EmbedBuilder({
-      title: "POR QUE MINHA SUGESTÃO FOI REJEITADA?",
-      description: projetosData.rejeitados,
-      color: Colors.Red,
-      footer: {
-        text: "lfpanelli",
-        iconURL: projetosData.avatarPanelli,
-      },
-    });
-  }
-
-  public static get repetidasEmbed() {
-    return new EmbedBuilder({
-      title: "SUGESTÕES RECORRENTES.",
-      description: projetosData.recorrentes,
-      color: Colors.Yellow,
-      footer: {
-        text: "lfpanelli",
-        iconURL: projetosData.avatarPanelli,
-      },
-    });
-  }
-
-  public static get dicasEmbed() {
-    return new EmbedBuilder({
-      title: "BEM-VINDO AO DISCORD DE SUGESTÕES LEGISLATIVAS.",
-      description: projetosData.tip,
-      color: Colors.Blue,
-    });
-  }
-
-  public static get faqEmbed() {
-    return new EmbedBuilder({
-      title: "FAQ SOBRE OS PROJETOS DE LEI",
-      description:
-        "Leia os cards acima antes de mandar o seu PL, para que ele não seja rejeitado ou removido. :)",
-      fields: [
-        {
-          name: "1 - Primeiro precisamos que o seu PL esteja de acordo com o tutorial e avisos acima.",
-          value:
-            "Seu projeto será rejeitado se ele bater em alguns dos pontos citados acima.\n",
-        },
-        {
-          name: "2 - O botão abaixo abrirá uma caixa de formulário que enviará o seu PL para moderação do servidor.",
-          value:
-            "Essa fiscalização é apenas para filtrar **FLOOD**, **SPAM**, **PROJETOS REPETIDOS**, e projetos que batem nos motivos de rejeição acima.\n",
-        },
-        {
-          name: "3 - Você receberá um aviso no seu privado se o seu PL passar na fiscalização.",
-          value:
-            "Se você tiver o privado fechado, e o seu PL for rejeitado, você não vai saber o motivo. Procure o #suporte para mais informações.\n",
-        },
-        {
-          name: "4 - Se o seu projeto for aceito na fiscalização, uma thread será aberta aqui mesmo nesse canal.",
-          value:
-            "Você é livre para mandar contexto adicional sobre o seu PL, mas não deve marcar o @lfpanelli.\n",
-        },
-      ],
-      color: Colors.DarkButNotBlack,
-    });
-  }
 }
 
 const projetosData = {
@@ -199,3 +138,58 @@ Se as privatizações estão paradas, certamente não é culpa do Congresso.
     "https://cdn.discordapp.com/avatars/740977650423824554/a0efafbb5e4d1b85db5415a481e535f8.webp?size=2048",
   customResponses: [],
 };
+
+const rejeitadasEmbed = new EmbedBuilder({
+  title: "POR QUE MINHA SUGESTÃO FOI REJEITADA?",
+  description: projetosData.rejeitados,
+  color: Colors.Red,
+  footer: {
+    text: "lfpanelli",
+    iconURL: projetosData.avatarPanelli,
+  },
+});
+
+const repetidasEmbed = new EmbedBuilder({
+  title: "SUGESTÕES RECORRENTES.",
+  description: projetosData.recorrentes,
+  color: Colors.Yellow,
+  footer: {
+    text: "lfpanelli",
+    iconURL: projetosData.avatarPanelli,
+  },
+});
+
+const dicasEmbed = new EmbedBuilder({
+  title: "BEM-VINDO AO DISCORD DE SUGESTÕES LEGISLATIVAS.",
+  description: projetosData.tip,
+  color: Colors.Blue,
+});
+
+const faqEmbed = new EmbedBuilder({
+  title: "FAQ SOBRE OS PROJETOS DE LEI",
+  description:
+    "Leia os cards acima antes de mandar o seu PL, para que ele não seja rejeitado ou removido. :)",
+  fields: [
+    {
+      name: "1 - Primeiro precisamos que o seu PL esteja de acordo com o tutorial e avisos acima.",
+      value:
+        "Seu projeto será rejeitado se ele bater em alguns dos pontos citados acima.\n",
+    },
+    {
+      name: "2 - O botão abaixo abrirá uma caixa de formulário que enviará o seu PL para moderação do servidor.",
+      value:
+        "Essa fiscalização é apenas para filtrar **FLOOD**, **SPAM**, **PROJETOS REPETIDOS**, e projetos que batem nos motivos de rejeição acima.\n",
+    },
+    {
+      name: "3 - Você receberá um aviso no seu privado se o seu PL passar na fiscalização.",
+      value:
+        "Se você tiver o privado fechado, e o seu PL for rejeitado, você não vai saber o motivo. Procure o #suporte para mais informações.\n",
+    },
+    {
+      name: "4 - Se o seu projeto for aceito na fiscalização, uma thread será aberta aqui mesmo nesse canal.",
+      value:
+        "Você é livre para mandar contexto adicional sobre o seu PL, mas não deve marcar o @lfpanelli.\n",
+    },
+  ],
+  color: Colors.DarkButNotBlack,
+});

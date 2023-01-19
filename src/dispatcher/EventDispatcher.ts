@@ -7,10 +7,10 @@ import { clientReadyHandler } from "../handlers/ClientReadyHandler";
 class EventDispatcher {
   public readonly listeners = new Map<Events, Set<EventHandler>>();
 
-  public addEventListener(eventName: Events, listener: EventHandler) {
+  public addEventListener(eventName: Events, listener: EventHandler): void {
     let listeners = this.listeners.get(eventName);
 
-    if (!listeners) {
+    if (listeners == null) {
       listeners = new Set();
       this.listeners.set(eventName, listeners);
     }
@@ -18,16 +18,16 @@ class EventDispatcher {
     listeners.add(listener);
   }
 
-  public dispatchEvent(eventName: Events, ...args: any[]): void {
+  public async dispatchEvent(eventName: Events, ...args: any[]): Promise<void> {
     const listeners = this.listeners.get(eventName);
-    if (listeners) {
+    if (listeners != null) {
       for (const listener of listeners) {
-        listener.handle(...args);
+        await listener.handle(...args);
       }
     }
   }
 
-  get events() {
+  get events(): Events[] {
     return Array.from(this.listeners.keys());
   }
 }

@@ -24,4 +24,6 @@ const rest = new REST({ version: "10" }).setToken(DISCORD_TOKEN);
   } catch (e) {
     console.error(e);
   }
-})();
+})().catch((e) => {
+  console.log("error");
+});
