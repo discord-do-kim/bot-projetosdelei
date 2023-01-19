@@ -157,6 +157,7 @@ export async function handleRejectProject(
                   text: rejectedProjeto._id.toString(),
                 },
               }),
+              rejectedEmbed,
             ],
           })
           .then(async (message) => {
