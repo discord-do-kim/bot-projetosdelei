@@ -192,9 +192,9 @@ export async function handleAcceptProject(
       ],
     });
 
-    const user = interaction.user;
+    const owner = await client.users.fetch(projeto.owner)
 
-    await user
+    await owner
       .send({
         content:
           "Pode acompanhar o andamento do seu projeto clicando no botão abaixo. Por favor, não marque o Panelli. Não acelere o processo e boa sorte com a análise de seu projeto!",
