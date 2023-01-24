@@ -11,7 +11,7 @@ export async function fetchError(e: any): Promise<void> {
       embeds: [
         new EmbedBuilder({
           title: e.name,
-          description: e.stack,
+          description: JSON.stringify(e),
           footer: { text: e.message },
           timestamp: new Date(),
         }).toJSON(),

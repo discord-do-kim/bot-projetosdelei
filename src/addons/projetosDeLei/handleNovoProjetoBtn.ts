@@ -12,6 +12,7 @@ import { ProjetoDeLeiModel } from "../../models/ProjetoDeLei";
 import { config } from "./config";
 import { handleSuggestionButtons, projetoEmbed } from "./utils";
 import { isTextChannel } from "../../utils/isTextChannel";
+import { fetchError } from "../../utils/fetchError";
 
 export async function handleNovoProjetoBtn(
   interaction: Interaction
@@ -104,19 +105,21 @@ export async function handleNovoProjetoBtn(
           "Seu projeto de lei foi enviado para a moderação fiscalizar. Você será notificado no privado se o seu projeto passar na fiscalização e encaminhada para assessoria do Kim.",
       });
 
-      collector.stop();
-
       await session.commitTransaction();
     } catch (e) {
+      await fetchError(e);
       await session.abortTransaction();
 
-      await interaction.followUp({
-        content:
-          "Não foi possível enviar o seu projeto de lei. Por favor, tente novamente.",
-        ephemeral: true,
-      });
+      await interaction
+        .followUp({
+          content:
+            "Não foi possível enviar o seu projeto de lei. Por favor, tente novamente.",
+          ephemeral: true,
+        })
+        .catch();
     } finally {
       await session.endSession();
+      collector.stop();
     }
   });
 }
