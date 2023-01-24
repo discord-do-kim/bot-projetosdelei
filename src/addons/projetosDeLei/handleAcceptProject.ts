@@ -192,7 +192,7 @@ export async function handleAcceptProject(
       ],
     });
 
-    const owner = await client.users.fetch(projeto.owner)
+    const owner = await client.users.fetch(projeto.owner);
 
     await owner
       .send({

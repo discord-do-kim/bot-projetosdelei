@@ -12,8 +12,10 @@ import {
   InteractionCollector,
   ModalSubmitInteraction,
   Colors,
+  DiscordAPIError,
+  DiscordjsError,
 } from "discord.js";
-import { Error } from "mongoose";
+import { MongooseError } from "mongoose";
 import { client } from "../../client";
 import { ProjetoDeLeiModel } from "../../models/ProjetoDeLei";
 import { fetchError } from "../../utils/fetchError";
@@ -102,31 +104,46 @@ export async function handleRejectProject(
     const collector = new InteractionCollector(client, {
       filter: (modal) => modal.user.id === interaction.user.id,
       interactionType: InteractionType.ModalSubmit,
+      message,
     });
 
     collector.on("collect", async (modal: ModalSubmitInteraction) => {
+      const rejectReason = modal.fields.getTextInputValue(
+        config.customIds.rejectReason
+      );
+
       const session = await ProjetoDeLeiModel.startSession();
       session.startTransaction();
       try {
         if (!modal.isModalSubmit()) return;
         await modal.deferReply({ ephemeral: true });
 
-        const rejectReason = modal.fields.getTextInputValue(
-          config.customIds.rejectReason
-        );
+        let projeto = await ProjetoDeLeiModel.findById(projetoId);
 
-        const rejectedProjeto = await ProjetoDeLeiModel.findByIdAndUpdate(
-          { _id: projetoId },
-          {
-            "meta.moderatorId": interaction.user.id,
-            "meta.status": "rejected",
-            "meta.rejectReason": rejectReason,
-            "meta.handledAt": new Date(),
-          },
-          { new: true }
-        );
+        if (projeto === null) {
+          throw new Error(
+            "Não foi possível encontrar esse projeto. Tente buscar no /projetos listagem."
+          );
+        }
 
-        if (rejectedProjeto === null) {
+        if (projeto.meta.status !== "pending")
+          throw new Error(
+            `O projeto já foi tratado e contém o status de: ${
+              Status[projeto.meta.status]
+            }.`
+          );
+
+        projeto.meta = {
+          moderatorId: interaction.user.id,
+          status: "rejected",
+          rejectReason,
+          handledAt: new Date(),
+          ownerNotified: false,
+        };
+
+        projeto = await projeto.save();
+
+        if (projeto === null) {
           await session.abortTransaction();
           await session.endSession();
 
@@ -137,8 +154,8 @@ export async function handleRejectProject(
           return;
         }
 
-        const rejectedEmbed = await rejectedProjetoEmbed(rejectedProjeto);
-        const embed = await projetoEmbed(rejectedProjeto);
+        const rejectedEmbed = await rejectedProjetoEmbed(projeto);
+        const embed = await projetoEmbed(projeto);
 
         message = await message.edit({
           embeds: [embed, rejectedEmbed],
@@ -147,14 +164,14 @@ export async function handleRejectProject(
 
         await owner
           .send({
-            content: `Seu projeto "${rejectedProjeto.title}" foi rejeitado.`,
+            content: `Seu projeto "${projeto.title}" foi rejeitado.`,
             embeds: [
               new EmbedBuilder({
-                title: rejectedProjeto.title,
-                description: rejectedProjeto.content,
-                timestamp: rejectedProjeto.meta.handledAt?.toString(),
+                title: projeto.title,
+                description: projeto.content,
+                timestamp: projeto.meta.handledAt?.toString(),
                 footer: {
-                  text: rejectedProjeto._id.toString(),
+                  text: projeto._id.toString(),
                 },
               }),
               rejectedEmbed,
@@ -182,14 +199,13 @@ export async function handleRejectProject(
                 "Se precisar de mais informações, clique nos botões abaixo:",
               components: [buttons],
             });
-
-            rejectedProjeto.meta.ownerNotified = true;
+            if (projeto !== null) projeto.meta.ownerNotified = true;
           })
           .catch((e) => {
-            rejectedProjeto.meta.ownerNotified = false;
+            if (projeto !== null) projeto.meta.ownerNotified = false;
           });
 
-        const projeto = await rejectedProjeto.save();
+        projeto = await projeto.save();
 
         message = await message.edit({
           embeds: [embed, rejectedEmbed, isNotifiedEmbed(projeto)],
@@ -213,9 +229,19 @@ export async function handleRejectProject(
             content: e.message,
             ephemeral: true,
           });
-        } else {
+        } else if (e instanceof DiscordAPIError) {
           await modal.followUp({
-            content: "Alguma coisa deu errado.",
+            content: e.message,
+            ephemeral: true,
+          });
+        } else if (e instanceof DiscordjsError) {
+          await modal.followUp({
+            content: e.message,
+            ephemeral: true,
+          });
+        } else if (e instanceof MongooseError) {
+          await modal.followUp({
+            content: e.message,
             ephemeral: true,
           });
         }
