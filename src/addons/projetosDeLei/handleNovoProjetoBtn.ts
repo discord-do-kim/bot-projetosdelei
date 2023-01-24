@@ -6,6 +6,7 @@ import {
   ActionRowBuilder,
   InteractionCollector,
   InteractionType,
+  EmbedBuilder,
 } from "discord.js";
 import { client } from "../../client";
 import { ProjetoDeLeiModel } from "../../models/ProjetoDeLei";
@@ -70,18 +71,17 @@ export async function handleNovoProjetoBtn(
   });
 
   collector.on("collect", async (modal): Promise<void> => {
+    if (!modal.isModalSubmit()) return;
+    const title = modal.fields.getTextInputValue(config.customIds.titleField);
+
+    const content = modal.fields.getTextInputValue(
+      config.customIds.contentField
+    );
+
     const session = await ProjetoDeLeiModel.startSession();
     session.startTransaction();
     try {
-      if (!modal.isModalSubmit()) return;
-
       await modal.deferReply({ ephemeral: true });
-
-      const title = modal.fields.getTextInputValue(config.customIds.titleField);
-
-      const content = modal.fields.getTextInputValue(
-        config.customIds.contentField
-      );
 
       const user = interaction.user;
 
@@ -110,13 +110,23 @@ export async function handleNovoProjetoBtn(
       await fetchError(e);
       await session.abortTransaction();
 
+      const message = {
+        content:
+          "Não foi possível enviar o seu projeto de lei. Por favor, tente novamente. \nCópia do conteúdo:",
+        embeds: [new EmbedBuilder({ title, description: content })],
+      };
+
       await interaction
         .followUp({
-          content:
-            "Não foi possível enviar o seu projeto de lei. Por favor, tente novamente.",
+          ...message,
           ephemeral: true,
         })
-        .catch();
+        .catch(async (e) => {
+          return await interaction.user.send(message);
+        })
+        .catch(async (e) => {
+          await fetchError(e);
+        });
     } finally {
       await session.endSession();
       collector.stop();
