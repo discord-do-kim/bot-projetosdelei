@@ -70,7 +70,7 @@ export async function handleNovoProjetoBtn(
     filter: (modal) => interaction.user.id === modal.user.id,
   });
 
-  collector.on("collect", async (modal): Promise<void> => {
+  collector.on("collect", async (modal: Interaction): Promise<void> => {
     if (!modal.isModalSubmit()) return;
     const title = modal.fields.getTextInputValue(config.customIds.titleField);
 
@@ -78,8 +78,6 @@ export async function handleNovoProjetoBtn(
       config.customIds.contentField
     );
 
-    const session = await ProjetoDeLeiModel.startSession();
-    session.startTransaction();
     try {
       await modal.deferReply({ ephemeral: true });
 
@@ -100,15 +98,14 @@ export async function handleNovoProjetoBtn(
         components: [suggestionButtons],
       });
 
-      await modal.followUp({
-        content:
-          "Seu projeto de lei foi enviado para a moderação fiscalizar. Você será notificado no privado se o seu projeto passar na fiscalização e encaminhada para assessoria do Kim.",
-      });
-
-      await session.commitTransaction();
+      await modal
+        .followUp({
+          content:
+            "Seu projeto de lei foi enviado para a moderação fiscalizar. Você será notificado no privado se o seu projeto passar na fiscalização e encaminhada para assessoria do Kim.",
+        })
+        .catch();
     } catch (e) {
       await fetchError(e);
-      await session.abortTransaction();
 
       const message = {
         content:
@@ -128,7 +125,6 @@ export async function handleNovoProjetoBtn(
           await fetchError(e);
         });
     } finally {
-      await session.endSession();
       collector.stop();
     }
   });
