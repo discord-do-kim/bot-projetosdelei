@@ -8,6 +8,7 @@ import {
   InteractionType,
   EmbedBuilder,
   DiscordAPIError,
+  Client,
 } from "discord.js";
 import { client } from "../../client";
 import { ProjetoDeLeiModel } from "../../models/ProjetoDeLei";
@@ -66,7 +67,7 @@ export async function handleNovoProjetoBtn(
 
   await interaction.showModal(modal);
 
-  const collector = new InteractionCollector(client, {
+  const collector = new InteractionCollector(client as Client<true>, {
     interactionType: InteractionType.ModalSubmit,
     filter: (modal) => interaction.user.id === modal.user.id,
     maxUsers: 1,

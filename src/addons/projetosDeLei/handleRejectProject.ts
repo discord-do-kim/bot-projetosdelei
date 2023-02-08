@@ -14,6 +14,7 @@ import {
   Colors,
   DiscordAPIError,
   DiscordjsError,
+  Client,
 } from "discord.js";
 import { MongooseError } from "mongoose";
 import { client } from "../../client";
@@ -101,7 +102,7 @@ export async function handleRejectProject(
 
     await interaction.showModal(modal);
 
-    const collector = new InteractionCollector(client, {
+    const collector = new InteractionCollector(client as Client<true>, {
       filter: (modal) => modal.user.id === interaction.user.id,
       interactionType: InteractionType.ModalSubmit,
       message,

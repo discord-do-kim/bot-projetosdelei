@@ -37,6 +37,7 @@ export async function projetoEmbed(projeto: Projeto): Promise<EmbedBuilder> {
     color: StatusColors[projeto.meta.status],
     footer: { text: projeto._id.toString() },
     timestamp: projeto.createdAt.toString(),
+    fields: [{ name: "ID do Usuário", value: owner.id, inline: false }],
   });
 }
 

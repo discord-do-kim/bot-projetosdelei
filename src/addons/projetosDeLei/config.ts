@@ -1,7 +1,13 @@
+import {
+  PRJ_LEI_MENTION_USER,
+  PRJ_LEI_SEND_CHANNEL,
+  PRJ_LEI_VERIFY_CHANNEL,
+} from "../../config";
+
 export const config = {
-  mention_user: "740977650423824554",
-  send_channel: "961398592340377600",
-  verify_channel: "1063623492366512128",
+  mention_user: PRJ_LEI_MENTION_USER,
+  send_channel: PRJ_LEI_SEND_CHANNEL,
+  verify_channel: PRJ_LEI_VERIFY_CHANNEL,
   customIds: {
     suggestNewProject: "create-project",
     titleField: "project-title",

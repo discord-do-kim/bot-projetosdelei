@@ -1,20 +1,26 @@
-# Use the official Node.js image as the base image
-FROM node:latest
-
-# Set the working directory
+FROM node:20-slim AS base
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable
+COPY . /app
 WORKDIR /app
 
-# Copy the package.json and package-lock.json files
-COPY package*.json ./
+ARG NODE_ENV=production
 
-# Install the dependencies
-RUN npm install
+FROM base AS build
+RUN pnpm install --prod --frozen-lockfile
+RUN pnpm build
 
-# Copy the rest of the source code
-COPY . .
+FROM base AS prod-deps
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --prod --frozen-lockfile
 
-# Build the application
-RUN npm run build
+FROM gcr.io/distroless/nodejs20-debian12
 
-# Run the application
-CMD ["node", "./build/index.js"]
+COPY --from=prod-deps /app/node_modules /app/node_modules
+COPY --from=build /app/build /app/build
+
+WORKDIR /app
+
+# Distroless are built by default to run "node" as the entrypoint
+# so we don't need to specify it here
+CMD [ "build/index.js"]
