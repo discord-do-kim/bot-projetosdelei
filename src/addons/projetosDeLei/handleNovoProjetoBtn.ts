@@ -100,10 +100,17 @@ export async function handleNovoProjetoBtn(
         components: [suggestionButtons],
       });
 
-      await modal.followUp({
-        content:
-          "Seu projeto de lei foi enviado para a moderação fiscalizar. Você será notificado no privado se o seu projeto passar na fiscalização e encaminhada para assessoria do Kim.",
-      });
+      await modal
+        .followUp({
+          content:
+            "Seu projeto de lei foi enviado para a moderação fiscalizar. Você será notificado no privado se o seu projeto passar na fiscalização e encaminhada para assessoria do Kim.",
+        })
+        .catch(async (e) => {
+          e.name = `${
+            e.name as string
+          } + falha no followUp do projeto enviado. `;
+          await fetchError(e);
+        });
 
       await session.commitTransaction();
     } catch (e) {
