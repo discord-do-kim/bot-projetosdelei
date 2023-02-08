@@ -211,7 +211,7 @@ export class ProjectsCommand extends CommandPattern {
       });
     }
 
-    projetos.forEach((projeto) => {
+    projetos.slice(0, 25).forEach((projeto) => {
       const date = `${projeto.createdAt.toLocaleString("pt-BR", {
         dateStyle: "medium",
         timeStyle: "medium",

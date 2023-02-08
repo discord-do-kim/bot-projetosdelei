@@ -6,3 +6,6 @@
 
 **/*.env
 **/*.env.**
+
+
+remove.ts
