@@ -7,6 +7,7 @@ import {
   InteractionCollector,
   InteractionType,
   EmbedBuilder,
+  DiscordAPIError,
 } from "discord.js";
 import { client } from "../../client";
 import { ProjetoDeLeiModel } from "../../models/ProjetoDeLei";
@@ -79,9 +80,6 @@ export async function handleNovoProjetoBtn(
     const content = modal.fields.getTextInputValue(
       config.customIds.contentField
     );
-
-    const session = await ProjetoDeLeiModel.startSession();
-    session.startTransaction();
     try {
       await modal.deferReply({ ephemeral: true });
 
@@ -102,22 +100,14 @@ export async function handleNovoProjetoBtn(
         components: [suggestionButtons],
       });
 
-      await modal
-        .followUp({
-          content:
-            "Seu projeto de lei foi enviado para a moderação fiscalizar. Você será notificado no privado se o seu projeto passar na fiscalização e encaminhada para assessoria do Kim.",
-        })
-        .catch(async (e) => {
-          e.name = `${
-            e.name as string
-          } + falha no followUp do projeto enviado. `;
-          await fetchError(e);
-        });
-
-      await session.commitTransaction();
+      await modal.followUp({
+        content:
+          "Seu projeto de lei foi enviado para a moderação fiscalizar. Você será notificado no privado se o seu projeto passar na fiscalização e encaminhada para assessoria do Kim.",
+      });
     } catch (e) {
       await fetchError(e);
-      await session.abortTransaction();
+
+      if (e instanceof DiscordAPIError && e.code === "40060") return;
 
       const message = {
         content:
@@ -137,7 +127,6 @@ export async function handleNovoProjetoBtn(
           await fetchError(e);
         });
     } finally {
-      await session.endSession();
       collector.stop();
     }
   });
