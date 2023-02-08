@@ -68,6 +68,8 @@ export async function handleNovoProjetoBtn(
   const collector = new InteractionCollector(client, {
     interactionType: InteractionType.ModalSubmit,
     filter: (modal) => interaction.user.id === modal.user.id,
+    maxUsers: 1,
+    max: 1,
   });
 
   collector.on("collect", async (modal): Promise<void> => {
