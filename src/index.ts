@@ -4,10 +4,11 @@ import mongoose from "mongoose";
 import { eventDispatcher } from "./dispatcher/EventDispatcher";
 import projetosDeLei from "./addons/projetosDeLei";
 import cronometro  from "./addons/cronometro";
+import voiceMod from "./addons/voiceMod"
 
 projetosDeLei();
 cronometro();
-
+voiceMod();
 
 (async () => {
   mongoose.set("strictQuery", true);

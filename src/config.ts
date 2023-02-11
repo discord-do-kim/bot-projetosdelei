@@ -8,3 +8,4 @@ export const MONGO_SRV = process.env.MONGO_SRV ?? "";
 export const PRJ_LEI_MENTION = process.env.PRJ_LEI_MENTION_USER ?? "";
 export const PRJ_LEI_SEND_CHANNEL = process.env.PRJ_LEI_SEND_CHANNEL ?? "";
 export const PRJ_LEI_VERIFY_CHANNEL = process.env.PRJ_LEI_VERIFY_CHANNEL ?? "";
+export const VOICE_CASTIGO_CHANNEL = process.env.VOICE_CASTIGO_CHANNEL ?? "";
