@@ -35,6 +35,7 @@
     "typescript": "^4.9.4"
   },
   "dependencies": {
+    "cron": "^2.2.0",
     "dayjs": "^1.11.7",
     "discord.js": "^14.7.1",
     "mongoose": "^6.8.3"
