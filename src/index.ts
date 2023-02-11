@@ -3,8 +3,11 @@ import { client } from "./client";
 import mongoose from "mongoose";
 import { eventDispatcher } from "./dispatcher/EventDispatcher";
 import projetosDeLei from "./addons/projetosDeLei";
+import cronometro  from "./addons/cronometro";
 
 projetosDeLei();
+cronometro();
+
 
 (async () => {
   mongoose.set("strictQuery", true);
