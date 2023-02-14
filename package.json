@@ -10,7 +10,7 @@
     "debug": "ts-node ./src/index.ts",
     "build": "rm -rf ./build && tsc",
     "lint": "eslint src -c .eslintrc.cjs --ext .ts --fix",
-    "commands": "cross-env NODE_ENV=development ts-node ./src/deploy-commands.ts"
+    "commands": "NODE_ENV=development ts-node ./src/deploy-commands.ts"
   },
   "author": "",
   "license": "ISC",
