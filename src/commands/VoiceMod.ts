@@ -13,7 +13,7 @@ export class VoiceMod extends CommandPattern {
         let targetUser = interaction.targetUser
         let original_channel = interaction.channelId
         await this.moveToVoiceChannel(interaction, targetUser, VOICE_CASTIGO_CHANNEL)
-        await this.moveToVoiceChannel(interaction, moduser, VOICE_CASTIGO_CHANNEL)
+        // await this.moveToVoiceChannel(interaction, moduser, VOICE_CASTIGO_CHANNEL)
         return;
     }
     
@@ -21,5 +21,5 @@ export class VoiceMod extends CommandPattern {
        let user = await interaction.guild?.members.fetch({ user: targetUser})
        user?.voice.setChannel(channelID)
        return;
-
     }
+}
