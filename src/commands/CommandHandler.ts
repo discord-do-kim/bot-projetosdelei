@@ -1,7 +1,7 @@
 import {
   ContextMenuCommandBuilder,
   Interaction,
-  InteractionType,
+  InteractionType
 } from "discord.js";
 import { fetchError } from "../utils/fetchError";
 import { CommandPattern, Slash } from "./CommandPattern";
@@ -35,13 +35,13 @@ class CommandHandler {
       await interaction
         .reply({
           ephemeral: true,
-          content: `${e as string}`,
+          content: `${e as string}`
         })
         .catch(
           async () =>
             await interaction.followUp({
               ephemeral: true,
-              content: `${e as string}`,
+              content: `${e as string}`
             })
         )
         .catch(async () => {

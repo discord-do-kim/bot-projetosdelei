@@ -5,7 +5,7 @@ import {
   ButtonBuilder,
   ButtonStyle,
   Interaction,
-  Colors,
+  Colors
 } from "discord.js";
 import dayjs from "dayjs";
 import duration, { type Duration } from "dayjs/plugin/duration";
@@ -22,14 +22,28 @@ export class CronometerCommand extends CommandPattern {
     .setNameLocalizations({ "pt-BR": "cronômetro" })
     .setDescription("A stopwatch is a precise tool for measuring time.")
     .setDescriptionLocalizations({
-      "pt-BR": "Um cronômetro é uma ferramenta precisa para medir o tempo.",
+      "pt-BR": "Um cronômetro é uma ferramenta precisa para medir o tempo."
     })
-    .addStringOption((option) =>
+    .addUserOption((option) =>
       option
-        .setName("description")
-        .setNameLocalizations({ "pt-BR": "descrição" })
-        .setDescription("give it a description")
-        .setDescriptionLocalizations({ "pt-BR": "Dê a ele uma descrição" })
+        .setName("mention")
+        .setNameLocalizations({ "pt-BR": "mention" })
+        .setDescription("mention the user")
+        .setDescriptionLocalizations({ "pt-BR": "Mencione o usuário" })
+        .setRequired(true)
+    )
+    .addIntegerOption((option) =>
+      option
+        .setName("time")
+        .setNameLocalizations({ "pt-BR": "tempo" }) // Tempo em segundos
+        .setDescription("time in seconds")
+        .setDescriptionLocalizations({ "pt-BR": "tempo em segundos" })
+        .setRequired(true)
+        .addChoices(
+          { name: "2m30s", value: 150 },
+          { name: "1m30s", value: 90 },
+          { name: "1m00s", value: 60 }
+        )
     );
 
   async execute(interaction: Interaction): Promise<void> {
@@ -37,64 +51,69 @@ export class CronometerCommand extends CommandPattern {
 
     await interaction.deferReply({ ephemeral: true });
 
-    const description = interaction.options.getString("description");
-
+    const mention = interaction.options.getUser("mention");
+    const description = mention !== null ? `Cronômetro para ${mention}` : null;
     const channel = interaction.channel;
+    var seconds = interaction.options.getInteger("time")!;
 
     if (channel === null || !isTextChannel(channel)) {
       await interaction.followUp({
         content: "Não é possivel criar um cronômetro neste chat.",
-        ephemeral: true,
+        ephemeral: true
       });
-
       return;
     }
-
-    let duration = dayjs.duration({}).add(0, "s"); // Hack para garantir que o duration vai exibir o tempo certinho.
 
     const user = interaction.user;
 
     const embed = new EmbedBuilder({
-      title: formatDuration(duration),
+      title: formatDuration(seconds!),
       color: Colors.Green,
       timestamp: new Date(),
       footer: {
         text: user.username,
-        iconURL: user.avatarURL({ size: 16 }) ?? undefined,
-      },
+        iconURL: user.avatarURL({ size: 16 }) ?? undefined
+      }
     });
 
-    if (description !== null) embed.setDescription(description);
+    embed.setDescription(description);
 
     const buttonStopId = randomUUID();
     const buttonPauseId = randomUUID();
     const buttonContinueId = randomUUID();
+    const buttonRestartId = randomUUID();
 
     const buttonStop = new ButtonBuilder({
       customId: buttonStopId,
       label: "Parar",
-      style: ButtonStyle.Danger,
+      style: ButtonStyle.Danger
     });
 
     const buttonPause = new ButtonBuilder({
       customId: buttonPauseId,
       label: "Pausar",
-      style: ButtonStyle.Primary,
+      style: ButtonStyle.Primary
     });
 
     const buttonContinue = new ButtonBuilder({
       customId: buttonContinueId,
       label: "Continuar",
-      style: ButtonStyle.Success,
+      style: ButtonStyle.Success
+    });
+
+    const buttonRestart = new ButtonBuilder({
+      customId: buttonRestartId,
+      label: "Reinicar",
+      style: ButtonStyle.Secondary
     });
 
     const buttons = new ActionRowBuilder<ButtonBuilder>({
-      components: [buttonPause, buttonStop],
+      components: [buttonPause, buttonStop, buttonRestart]
     });
 
     const message = await channel.send({
       embeds: [embed],
-      components: [buttons],
+      components: [buttons]
     });
 
     let messageDeleted = false;
@@ -102,25 +121,38 @@ export class CronometerCommand extends CommandPattern {
     await interaction.deleteReply();
 
     const collector = message.createMessageComponentCollector({
-      filter: (compEvent) => compEvent.user.id === interaction.user.id,
+      // Only the user who created the message can interact with it
+      filter: (compEvent) => compEvent.user.id === interaction.user.id
     });
 
     const cronometer: CronJob = new CronJob({
       cronTime: "* * * * * *",
-      onTick() {
-        duration = duration.add(1, "second");
+      async onTick() {
+        if (seconds <= 0) {
+          cronometer.stop();
+          collector.stop();
+          embed.setColor("Red");
+          embed.setTitle(`Tempo Esgotado!`);
+          if (!messageDeleted) {
+            await message.edit({ embeds: [embed], components: [] });
+          }
+          return;
+        }
 
-        embed.setTitle(formatDuration(duration));
+        seconds -= 1;
+
+        embed.setTitle(formatDuration(seconds));
 
         if (messageDeleted) {
           collector.stop();
           cronometer.stop();
-
           return;
         }
 
-        message.edit({ embeds: [embed] }).catch(() => (messageDeleted = true));
-      },
+        await message
+          .edit({ embeds: [embed] })
+          .catch(() => (messageDeleted = true));
+      }
     });
 
     cronometer.start();
@@ -131,9 +163,10 @@ export class CronometerCommand extends CommandPattern {
         case buttonStopId:
           await btnInteraction.reply({
             content: "Parando...",
-            ephemeral: true,
+            ephemeral: true
           });
           embed.setColor("Red");
+          embed.setTitle(embed.data.title + " | Parado!");
           if (!messageDeleted) {
             await message.edit({ embeds: [embed], components: [] });
           }
@@ -146,10 +179,11 @@ export class CronometerCommand extends CommandPattern {
         case buttonPauseId:
           await btnInteraction.reply({
             content: "Pausando...",
-            ephemeral: true,
+            ephemeral: true
           });
           embed.setColor("Blue");
-          buttons.setComponents(buttonContinue, buttonStop);
+          embed.setTitle(embed.data.title + " | Pausado!");
+          buttons.setComponents(buttonContinue, buttonStop, buttonRestart);
           if (!messageDeleted) {
             await message.edit({ embeds: [embed], components: [buttons] });
           }
@@ -160,13 +194,32 @@ export class CronometerCommand extends CommandPattern {
         case buttonContinueId:
           await btnInteraction.reply({
             content: "Iniciando...",
-            ephemeral: true,
+            ephemeral: true
           });
           embed.setColor("Green");
-          buttons.setComponents(buttonPause, buttonStop);
+          embed.setTitle(formatDuration(seconds));
+          buttons.setComponents(buttonPause, buttonStop, buttonRestart);
           if (!messageDeleted) {
             await message.edit({ embeds: [embed], components: [buttons] });
           }
+          cronometer.start();
+          await btnInteraction.deleteReply();
+          break;
+
+        case buttonRestartId:
+          await btnInteraction.reply({
+            content: "Reiniciando...",
+            ephemeral: true
+          });
+          embed.setColor("Green");
+          embed.setTitle("Reiniciando em 5 segundos...");
+          buttons.setComponents(buttonPause, buttonStop, buttonRestart);
+          if (!messageDeleted) {
+            await message.edit({ embeds: [embed], components: [buttons] });
+          }
+          cronometer.stop();
+          seconds = interaction.options.getInteger("time")!;
+          await new Promise((r) => setTimeout(r, 5000));
           cronometer.start();
           await btnInteraction.deleteReply();
           break;
@@ -175,5 +228,10 @@ export class CronometerCommand extends CommandPattern {
   }
 }
 
-const formatDuration = (duration: Duration): string =>
-  duration.format("H[h] m[m] s[s]");
+const formatDuration = (seconds: number): string => {
+  const minutes = Math.floor(seconds / 60);
+  const secondsLeft = seconds % 60;
+  return `${minutes.toString().padStart(2, "0")}:${secondsLeft
+    .toString()
+    .padStart(2, "0")}`;
+};
