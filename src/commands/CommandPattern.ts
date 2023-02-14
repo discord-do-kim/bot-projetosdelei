@@ -17,6 +17,9 @@ export type Slash =
       | "addStringOption"
       | "addIntegerOption"
       | "addNumberOption"
+      | "addSubcommandGroup"
+      | "addSubcommand"
+      | "_sharedAddOptionMethod"
     >;
 
 export abstract class CommandPattern {
@@ -42,7 +45,7 @@ export abstract class CommandPattern {
 
   get name(): string {
     return this.command.name;
-}
+  }
 
   get description(): string {
     if (this.command instanceof ContextMenuCommandBuilder) {
