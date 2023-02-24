@@ -5,6 +5,7 @@ import {
 } from "discord.js";
 import { fetchError } from "../utils/fetchError";
 import { CommandPattern, Slash } from "./CommandPattern";
+import commands from ".";
 
 type HandlerFunction = (
   interaction: Interaction,
@@ -59,3 +60,7 @@ class CommandHandler {
 }
 
 export const commandHandler = new CommandHandler();
+
+commands.forEach((command) => {
+  commandHandler.register(command);
+});
