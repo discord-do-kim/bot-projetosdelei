@@ -36,7 +36,7 @@
   },
   "dependencies": {
     "dayjs": "^1.11.7",
-    "discord.js": "^14.7.1",
+    "discord.js": "^14.9.0",
     "mongoose": "^6.8.3"
   },
   "engines": {
