@@ -7,5 +7,4 @@
 **/*.env
 **/*.env.**
 
-
-remove.ts
+!**/.env.example
