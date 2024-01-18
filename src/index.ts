@@ -3,6 +3,7 @@ import { client } from "./client";
 import mongoose from "mongoose";
 import { eventDispatcher } from "./dispatcher/EventDispatcher";
 import projetosDeLei from "./addons/projetosDeLei";
+import { Events } from "discord.js";
 
 projetosDeLei();
 
@@ -16,6 +17,9 @@ projetosDeLei();
     });
   });
 
+  client.once(Events.ClientReady, readyClient => {
+    console.log(`Ready! Logged in as ${readyClient.user.tag}`);
+  });
   await client.login(DISCORD_TOKEN);
 })().catch((e) => {
   console.log(e);
