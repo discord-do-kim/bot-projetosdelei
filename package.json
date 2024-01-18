@@ -1,6 +1,6 @@
 {
   "name": "discord-kim-bot",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "",
   "main": "src/index.ts",
   "scripts": {
@@ -22,24 +22,21 @@
     "@commitlint/cli": "18.4.4",
     "@commitlint/config-conventional": "18.4.4",
     "@commitlint/cz-commitlint": "18.4.4",
-    "@tsconfig/node16": "1.0.3",
-    "@types/cron": "2.0.0",
-    "@types/node": "18.7.16",
-    "@typescript-eslint/eslint-plugin": "5.48.2",
-    "@typescript-eslint/parser": "5.48.0",
+    "@types/node": "20.11.5",
+    "@typescript-eslint/eslint-plugin": "6.19.0",
+    "@typescript-eslint/parser": "6.19.0",
     "commitizen": "4.3.0",
-    "cross-env": "7.0.3",
     "cz-conventional-changelog": "3.3.0",
-    "dotenv": "16.0.3",
+    "dotenv": "16.3.1",
     "husky": "^8.0.3",
-    "nodemon": "2.0.19",
-    "prettier": "2.7.1",
-    "ts-node": "10.9.1",
+    "nodemon": "3.0.3",
+    "prettier": "3.2.4",
+    "ts-node": "10.9.2",
     "typescript": "5.3.3"
   },
   "dependencies": {
-    "dayjs": "1.11.7",
-    "discord.js": "14.9.0",
+    "@discordjs/builders": "1.7.0",
+    "discord.js": "14.14.1",
     "mongoose": "6.8.3"
   },
   "config": {
