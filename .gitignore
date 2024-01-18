@@ -1,5 +1,5 @@
 **/node_modules
-
+**/build
 **/dist
 **/build
 **/.vscode
@@ -7,4 +7,4 @@
 **/*.env
 **/*.env.**
 
-!**/.env.example
++**/.env.example
