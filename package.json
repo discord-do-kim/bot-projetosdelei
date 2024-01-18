@@ -4,15 +4,15 @@
   "description": "",
   "main": "src/index.ts",
   "scripts": {
+    "prepare": "node -e \"if (process.env.NODE_ENV !== 'production') { require('husky').install() }\"",
+    "build": "tsc",
+    "start": "pnpm debug:show-env && node index.js",
     "dev": "nodemon",
-    "prestart": "rm -rf ./build && tsc",
-    "start": " node build/index.js",
     "debug": "ts-node ./src/index.ts",
-    "build": "rm -rf ./build && tsc",
     "lint": "eslint src -c .eslintrc.cjs --ext .ts --fix",
-    "prepare": "husky install",
     "commit": "cz",
-    "commands": "NODE_ENV=development ts-node ./src/deploy-commands.ts"
+    "commands": "NODE_ENV=development ts-node ./src/deploy-commands.ts",
+    "debug:show-env": "node -e \"console.log(process.env)\""
   },
   "author": "",
   "license": "ISC",
@@ -45,6 +45,6 @@
     }
   },
   "engines": {
-    "node": ">=20.11.0"
+    "node": "20.11.0"
   }
 }
