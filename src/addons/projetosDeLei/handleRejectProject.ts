@@ -89,7 +89,7 @@ export async function handleRejectProject(
           style: TextInputStyle.Paragraph,
           label: "Descreva aqui o por quê.",
           value:
-            "O seu projeto ou fere as diretrizes legais pré-estabelecidas, ou o seu projeto está fora dos conformes, de acordo com o tutorial exposto no canal de projetos-de-lei. Por favor, peço dê uma olhada antes de enviar o seu PL.",
+            "Agradecemos a sua participação, entretanto a sua sugestão de projeto não se encontra dentro das competências do Poder Legislativo Federal. Nesse sentido, verifique se a competência não é estadual/municipal ou até mesmo se não é uma competência do Poder Executivo. Por fim, pode não ser um projeto dentro das nossas diretrizes políticas. Equipe Kim agradece novamente a sua participação!.",
         },
       ],
     });
