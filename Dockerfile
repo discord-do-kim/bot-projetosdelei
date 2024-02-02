@@ -8,7 +8,7 @@ WORKDIR /app
 ARG NODE_ENV=production
 
 FROM base AS build
-RUN pnpm install --prod --frozen-lockfile
+RUN pnpm install --prod
 RUN pnpm build
 
 FROM base AS prod-deps
